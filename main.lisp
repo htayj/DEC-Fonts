@@ -325,8 +325,6 @@ Return a new array, or write into the optional 3rd argument."
 
 (defun colors-to-red (colors)
   (aref colors 0))
-;; (colors-to-red #(230 243 100))
-;; (type-to-vis 2)
 
 (defun imageToTernArray (input-pathname)
   "reads in an image and turns it into an array of 0, 1, or 2
@@ -340,8 +338,6 @@ Return a new array, or write into the optional 3rd argument."
              (png:decode input))
            )
          )
-    ;; (array-dimension image 0)
-    ;; (array-dimension image 1)
     (array-element-map #'red-to-type  (array-element-map #'colors-to-red  (aops:split image 2 ) ) )))
 
 ;; (array-element-map
@@ -615,7 +611,7 @@ Return a new array, or write into the optional 3rd argument."
 ;; (fix-end (scale-width (scale-height (cadddr char-list) 2 ) 2))
 ;; (cadddr char-list)
 
-(defun scale-element (x i &optional (counter 1) (acc '()))
+(defun scale (x i &optional (counter 1) (acc '()))
   (if (> counter   i )
       acc
       (scale x
@@ -623,8 +619,8 @@ Return a new array, or write into the optional 3rd argument."
              (+ counter 1) (if acc
                                (cons x acc)
                                (list x)))))
-(scale 1 3)
-(list 1)
+;; (scale 1 3)
+;; (list 1)
 ;; scale character by integer
 (defun double-width-vec (char i)
   (reduce
@@ -654,7 +650,7 @@ Return a new array, or write into the optional 3rd argument."
   (maparray #'(lambda (vec i) (scale-width-vec vec fac)) char) )
 (defun double-width (char )
   (scale-width char 2 ))
-(scale-width #2A((1 2 3) (4 5 6)) 4)
+;; (scale-width #2A((1 2 3) (4 5 6)) 4)
 ;; old with turn
 ;; (defun scale-height (char fac)
 ;;   (aops:turn (maparray #'(lambda (vec i) (scale-width-vec vec fac)) (aops:turn char 1)) -1))
@@ -743,7 +739,6 @@ Return a new array, or write into the optional 3rd argument."
 (defun zip-hex-and-char (hex-list char-list &optional (combo  '()))
   (let ((char (car char-list))
         (hex (car hex-list)))
-    (print (length combo ))
     (if (and (not char) (not hex))
         combo
         (zip-hex-and-char
@@ -895,11 +890,11 @@ Return a new array, or write into the optional 3rd argument."
                                            "ENDFONT"
                                            "")) ))))
 
-(write-font zipped-hex-chars-80-col-double 'wide "80col")
+;; (write-font zipped-hex-chars-80-col-double 'wide "80col")
 (defun write-chars (chars width-type style-name)
   (write-font (zip-hex-and-char hexes chars) width-type style-name ))
-(write-chars 80-col-double-chars 'wide "80col")
-(write-chars 80-col-double-chars 'wide "80col")
+;; (write-chars 80-col-double-chars 'wide "80col")
+;; (write-chars 80-col-double-chars 'wide "80col")
 ;; size is (xscale yscale)
 (defun write-chars-in-sizes (chars sizes width-type col-num)
   (mapcar #'(lambda (size)
