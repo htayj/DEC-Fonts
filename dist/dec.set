@@ -1,0 +1,223 @@
+U+0020 # space
+U+25C6 # diamond
+U+2592 # blit/medium-shade
+U+2409 # HT
+U+240C # FF
+U+240D # CR
+U+240A # LF
+U+00B0 # degree
+U+00B1 # plusminus
+U+2424 # NL
+U+240B # VT
+U+2518 # box-upper-left
+U+2510 # box-lower-left
+U+250C # box-lower-right
+U+2514 # box-upper-right
+U+253C # box-cross
+U+23BA # 1/5 line
+U+23BB # 2/5 line
+U+2500 # box-draw-line
+U+23BC # 4/5 line
+U+23BD # 5/5 line
+U+251C # box-T-right
+U+2524 # box-T-left
+U+2534 # box-T-up
+U+253C # box-T-down
+U+2502 # box-vetical-line
+U+2264 # less-equal
+U+2265 # greater-equal
+U+03C0 # pi
+U+2260 # not-equal
+U+00A3 # pound
+U+00b7 # dot
+U+2E2E # reverse question mark
+U+0021 # exclamation
+U+0022 # quote
+U+0023 # pound
+U+0024 # dollar
+U+0025 # percent
+U+0026 # ampersand
+U+0027 # appostrophe
+U+0028 # open paren
+U+0029 # close paren
+U+002A # astrisk
+U+002B # plus
+U+002C # comma
+U+002D # dash
+U+002E # period
+U+002F # forward slash
+U+0030 # 0
+U+0031 # 1
+U+0032 # 2
+U+0033 # 3
+U+0034 # 4
+U+0035 # 5
+U+0036 # 6
+U+0037 # 7
+U+0038 # 8
+U+0039 # 9
+U+003A # :
+U+003B # ;
+U+003C # <
+U+003D # =
+U+003E # >
+U+003F # ?
+U+0040 # @
+U+0041 # A
+U+0042 # B
+U+0043 # C
+U+0044 # D
+U+0045 # E
+U+0046 # F
+U+0047 # G
+U+0048 # H
+U+0049 # I
+U+004A # J
+U+004B # K
+U+004C # L
+U+004D # M
+U+004E # N
+U+004F # O
+U+0050 # P
+U+0051 # Q
+U+0052 # R
+U+0053 # S
+U+0054 # T
+U+0055 # U
+U+0056 # V
+U+0057 # W
+U+0058 # X
+U+0059 # Y
+U+005A # Z
+U+005B # [
+U+005C # backslash
+U+005D # ]
+U+005E # ^
+U+005F # _
+U+0060 # `
+U+0061 # a
+U+0062 # b
+U+0063 # c
+U+0064 # d
+U+0065 # e
+U+0066 # f
+U+0067 # g
+U+0068 # h
+U+0069 # i
+U+006a # j
+U+006b # k
+U+006c # l
+U+006d # m
+U+006e # n
+U+006f # o
+U+0070 # p
+U+0071 # q
+U+0072 # r
+U+0073 # s
+U+0074 # t
+U+0075 # u
+U+0076 # v
+U+0077 # w
+U+0078 # x
+U+0079 # y
+U+007A # z
+U+007B # {
+U+007C # |
+U+007D # }
+U+007E # ~
+U+007F # DEL
+U+00A1 # Inverted exclamation mark
+U+00A2 # Cent sign
+U+00A3 # Pound sign
+U+00A8 # Diaeresis
+U+00A5 # Yen sign
+U+00A6 # Broken bar
+U+00A7 # Section sign
+U+00A4 # Currency sign
+U+00A9 # Copyright sign
+U+00AA # Feminine ordinal indicator
+U+00AB # Left-pointing double angle quotation mark
+U+00AC # Not sign
+U+00AE # Registered sign
+U+00AF # Macron
+U+00B0 # Degree symbol
+U+00B1 # Plus-minus sign
+U+00B2 # Superscript two
+U+00B3 # Superscript three
+U+00B4 # Acute accent
+U+00B5 # Micro sign
+U+00B6 # Pilcrow sign
+U+00B7 # Middle dot
+U+00B8 # Cedilla  CUSTOM
+U+00B9 # Superscript one
+U+00BA # Masculine ordinal indicator
+U+00BB # Right-pointing double-angle quotation mark
+U+00BC # Vulgar fraction one quarter
+U+00BD # Vulgar fraction one half
+U+00BE # Vulgar fraction three quarters
+U+00BF # Inverted question mark
+U+00C0 # Latin Capital Letter A with grave
+U+00C1 # Latin Capital letter A with acute
+U+00C2 # Latin Capital letter A with circumflex
+U+00C3 # Latin Capital letter A with tilde
+U+00C4 # Latin Capital letter A with diaeresis
+U+00C5 # Latin Capital letter A with ring above
+U+00C6 # Latin Capital letter AE
+U+00C7 # Latin Capital letter C with cedilla
+U+00C8 # Latin Capital letter E with grave
+U+00C9 # Latin Capital letter E with acute
+U+00CA # Latin Capital letter E with circumflex
+U+00CB # Latin Capital letter E with diaeresis
+U+00CC # Latin Capital letter I with grave
+U+00CD # Latin Capital letter I with acute
+U+00CE # Latin Capital letter I with circumflex
+U+00CF # Latin Capital letter I with diaeresis
+U+00D0 # Latin Capital letter Eth
+U+00D1 # Latin Capital letter N with tilde
+U+00D2 # Latin Capital letter O with grave
+U+00D3 # Latin Capital letter O with acute
+U+00D4 # Latin Capital letter O with circumflex
+U+00D5 # Latin Capital letter O with tilde
+U+00D6 # Latin Capital letter O with diaeresis
+U+0152 # Capital OE
+U+00D8 # Latin Capital letter O with stroke
+U+00D9 # Latin Capital letter U with grave
+U+00DA # Latin Capital letter U with acute
+U+00DB # Latin Capital Letter U with circumflex
+U+00DC # Latin Capital Letter U with diaeresis
+U+0178 # Latin Capital Letter Y with diaeresis
+U+00DE # Latin Capital Letter Thorn
+U+00DF # Latin Small Letter sharp S
+U+00E0 # Latin Small Letter A with grave
+U+00E1 # Latin Small Letter A with acute
+U+00E2 # Latin Small Letter A with circumflex
+U+00E3 # Latin Small Letter A with tilde
+U+00E4 # Latin Small Letter A with diaeresis
+U+00E5 # Latin Small Letter A with ring above
+U+00E6 # Latin Small Letter AE
+U+00E7 # Latin Small Letter C with cedilla
+U+00E8 # Latin Small Letter E with grave
+U+00E9 # Latin Small Letter E with acute
+U+00EA # Latin Small Letter E with circumflex
+U+00EB # Latin Small Letter E with diaeresis
+U+00EC # Latin Small Letter I with grave
+U+00ED # Latin Small Letter I with acute
+U+00EE # Latin Small Letter I with circumflex
+U+00EF # Latin Small Letter I with diaeresis
+U+00F0 # Latin Small Letter Eth
+U+00F1 # Latin Small Letter N with tilde
+U+00F2 # Latin Small Letter O with grave
+U+00F3 # Latin Small Letter O with acute
+U+00F4 # Latin Small Letter O with circumflex
+U+00F5 # Latin Small Letter O with tilde
+U+00F6 # Latin Small Letter O with diaeresis
+U+0152 # small OE
+U+00F8 # Latin Small Letter O with stroke
+U+00F9 # Latin Small Letter U with grave
+U+00FA # Latin Small Letter U with acute
+U+00FB # Latin Small Letter U with circumflex
+U+00FC # Latin Small Letter U with diaeresis
+U+00FF # Latin Small Letter Y with diaeresis
+U+00FE # Latin Small Letter Thorn
+U+25A1 # white square
+U+00FD # Latin Small Letter Y with acute
