@@ -1,7 +1,5 @@
 (ql:quickload "png")
 (ql:quickload :array-operations)
-;; (defun array-map (function array)
-;;   (dotimes (i (array-dimension array))))
 
 ;; need unicode points: d7, 
 (defvar hexes '())
@@ -285,24 +283,6 @@
 ;; concat arrays
 (defun cona (array array2) (let ((a2vec (aops:split array2 1))) (maparray #'(lambda (a i) (concatenate 'vector a (aref a2vec  i))) array) ))
 
-;; (list
-;;  (pretty-print
-;;   (cona (get-cell-by-index 120) (get-cell-by-index 121) )
-;;   )
-;;  (pretty-print (get-cell-by-index 119))
-;;  )
-
-;; (defun cat-print (arr i char-in-row max)
-;;   (if (> i max)
-;;       arr
-;;       (cona (get-cell-by-index i) (cat-print arr (+ 1 i) (+ 1 char-in-row ) max) ))
-;;   )
-;; (defun print-all (char-in-row max )
-;;   (cat-print (get-cell-by-index 2) 100 0 105))
-
-;; (pretty-print
-;;  (print-all 2 2)
-;;  )
 
 (defun array-element-map (function array
                           &optional (retval (make-array (array-dimensions array))))
@@ -331,24 +311,12 @@ Return a new array, or write into the optional 3rd argument."
 0: spacing
 1: background
 2: letter"
-  (let* (
-         (image
+  (let* ((image
            (with-open-file
                (input input-pathname :element-type '(unsigned-byte 8))
-             (png:decode input))
-           )
-         )
-    (array-element-map #'red-to-type  (array-element-map #'colors-to-red  (aops:split image 2 ) ) )))
+             (png:decode input))))
+    (array-element-map #'red-to-type (array-element-map #'colors-to-red (aops:split image 2)))))
 
-;; (array-element-map
-;;  #'(lambda (cells)
-;;      (format nil "~{~A~^~}" cells))
-;;  (array-element-map #'(lambda (arr) (coerce arr 'list))
-;;             (aops:split
-;;              (array-element-map
-;;               #'type-to-vis
-;;               (imagetoternarray "./rom-separated.png")) 
-;;              1) ))
 (defun pretty-print (type2d)
   (format nil "~{~A~%^~}"
           (coerce 
@@ -360,17 +328,9 @@ Return a new array, or write into the optional 3rd argument."
                                 (array-element-map
                                  #'type-to-vis
                                  type2d) 
-                                1) ))
-           'list) )
-  )
+                                1)))
+           'list)))
 
-;; test1
-;; (let ( (arr  (make-array '(4 2 3) :initial-contents
-;;                          '(((a b c) (1 2 3))
-;;                            ((d e f) (3 1 2))
-;;                            ((g h i) (2 3 1))
-;;                            ((j k l) (0 0 0)))) ) )
-;;   (aops:split  arr 2))
 
 ;;; ==================================
 ;;; test data for reference
@@ -479,24 +439,6 @@ Return a new array, or write into the optional 3rd argument."
         (rownum (mod i numrow)))
     (get-cell-by-xy colnum rownum cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
 
-;; (defun get-cell-by-index (i)
-;;   (let ((colnum (floor i numrow))
-;;         (rownum (mod i numrow)))
-;;     (get-cell-by-xy colnum rownum)))
-;; (defun get-cell-index (i)
-;;   (let ((colnum (floor i numcol))
-;;         (rownum (mod i numcol)))
-;;     (list colnum rownum)))
-;; (get-cell-by-index 2)
-;; (floor 16 18)
-
-;; (pretty-print (get-cell-by-xy 1 3))
-;; (pretty-print (get-cell-by-index 1))
-;; (pretty-print (get-cell-by-index 100))
-
-;; (* 16 18)
-;; (pretty-print (imagetoternarray "./rom-separated.png"))
-
 (defvar char-list (loop for i below (* numcol numrow)
                         collect (get-cell-by-index i numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
 
@@ -504,47 +446,10 @@ Return a new array, or write into the optional 3rd argument."
   (loop for i below (* numcol numrow)
         collect (get-cell-by-index i numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
 
-;; (get-char-list numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-
-;; (setq char-list (loop for i below (* numcol numrow)
-;;                       collect (get-cell-by-index i)))
-;; (defvar char-list2 (loop for i below (- (* numcol numrow) 1)
-;;                          collect (get-cell-by-index i)))
-
-;; (mapcar #'pretty-print char-list)
-
-;; (let* (
-;;        (array1 (make-array '(2 2)
-;;                            :initial-contents
-;;                            '((3 4)
-;;                              (5 6))))
-;;        (dim0 (array-dimension array1 0))
-;;        (dim1 (array-dimension array1 1)))
-;;   (aops:zeros (list dim0 dim1)))
-
-;; (aref
-;;  (maparray #'(lambda (vec i)
-;;                (maparray #'(lambda (n j) (+ i j))  vec )) 
-;;            (aops:zeros '(2 2)))
-;;  1 1)
-;; (aops:combine (mapa #'(lambda (vec i)
-;;                         (concatenate 'vector #(0) vec )) 
-;;                     (aops:split (aops:zeros '(2 2) ) 1 )
-;;                     ) )
-
 
 ;;; =============================================================
 ;;; Now do the bit operations to make the characters look right
 ;;; =============================================================
-;;TODO
-;; (defun ziparray (fn array1 array2)
-;;   (maparray (lambda (element i) (fn element ) ) (car arrays)))
-;; ;;flip x and y - actually turns 90 degrees, but the point is to allow x based operations to work on y also
-;; (defun flip (char)
-;;   (aops:turn char 1))
-;; ;; undoes flip by rotating back to original orientation
-;; (defun unflip (char)
-;;   (aops:turn char 3))
 (defun make-antishifted (char)
   (maparray #'(lambda (vec i)
                 (concatenate 'vector  vec #(0) )) 
@@ -553,8 +458,6 @@ Return a new array, or write into the optional 3rd argument."
   (maparray #'(lambda (vec i)
                 (concatenate 'vector #(0) vec )) 
             char))
-;; (pretty-print (get-cell-by-index 100))
-;; (pretty-print (make-shifted (get-cell-by-index 100)))
 (defun arr-or (big-arr little-arr)
   (maparray #'(lambda (vec i)
                 (maparray #'(lambda (b j)
@@ -566,11 +469,6 @@ Return a new array, or write into the optional 3rd argument."
                           vec )) 
             big-arr))
 
-
-;; (pretty-print (arr-or
-;;                (make-shifted (get-cell-by-index 100))
-;;                (make-antishifted (get-cell-by-index 100))))
-
 ;; stretch using the bit-stretching of vt100
 ;; TODO: should not make the size change
 (defun stretch-char (char)
@@ -581,21 +479,6 @@ Return a new array, or write into the optional 3rd argument."
 ;; But that would result in 11x10 instead of 10x10
 ;; Norbert Landsteiner says to repeat by 1,
 ;; which would result in 10x10, the correct dimensions
-;;; old version using turn
-;; (defun fix-end (char)
-;;   (let*
-;;       ((turn-split 
-;;          (aops:split 
-;;           (aops:turn char -1)
-;;           1))
-;;        (last-col
-;;          (aref
-;;           turn-split
-;;           0)))
-;;     (aops:turn (aops:stack-rows last-col
-;;                                 ;; last-col
-;;                                 (aops:combine turn-split))
-;;                1)))
 (defun fix-end (char)
   (let*
       ((flip-split 
@@ -608,8 +491,6 @@ Return a new array, or write into the optional 3rd argument."
           (- (aops:ncol char) 1))))
     (flip (aops:stack-rows (aops:combine flip-split)
                            last-col))))
-;; (fix-end (scale-width (scale-height (cadddr char-list) 2 ) 2))
-;; (cadddr char-list)
 
 (defun scale (x i &optional (counter 1) (acc '()))
   (if (> counter   i )
@@ -619,57 +500,28 @@ Return a new array, or write into the optional 3rd argument."
              (+ counter 1) (if acc
                                (cons x acc)
                                (list x)))))
-;; (scale 1 3)
-;; (list 1)
 ;; scale character by integer
-(defun double-width-vec (char i)
-  (reduce
-   #'(lambda (acc curr)
-       (concatenate 'vector acc curr))
-   (maparray #'(lambda (x i) (list x x)) char)
-   :initial-value #()))
-
 (defun scale-width-vec (char fac)
   (reduce
    #'(lambda (acc curr)
        (concatenate 'vector acc curr))
    (maparray #'(lambda (x i) (scale x fac)) char)
    :initial-value #()))
-;; (scale-width-vec #(0 1 0) 3)
 
-;; (defun double-height (char)
-;;   (aops:turn (maparray #'double-width-vec (aops:turn char 1)) -1) )
-;; (defun double-width (char)
-;;   (maparray #'scale-width-vec char) )
-;; (aops:permute '(1 0) (aops:permute '(1 0) #2A((1 2) (3 4) (5 6)) ) )
 (defun flip (matrix)
   (aops:permute '(1 0) matrix))
-;; (flip #2A((1 2) (3 4) (5 6)))
 
 (defun scale-width (char fac)
   (maparray #'(lambda (vec i) (scale-width-vec vec fac)) char) )
+
 (defun double-width (char )
   (scale-width char 2 ))
-;; (scale-width #2A((1 2 3) (4 5 6)) 4)
-;; old with turn
-;; (defun scale-height (char fac)
-;;   (aops:turn (maparray #'(lambda (vec i) (scale-width-vec vec fac)) (aops:turn char 1)) -1))
+
 (defun scale-height (char fac)
   (flip (maparray #'(lambda (vec i) (scale-width-vec vec fac)) (flip char )) ))
 
 (defun double-height (char )
   (scale-height char 2 ))
-(defun double-width (char )
-  (scale-width char 2 ))
-
-;; (scale-height #2A((1 2 3) (4 5 6)) 4)
-
-;; (defun scale-char-x (char xfac)
-;;   (zip-x (make-dupe-list char xfac)))
-;; (defun scale-char-y (char yfac)
-;;   (unflip (scale-char-x (flip char) yfac) ))
-;; (defun scale-char (char xfac yfac)
-;;   (scale-char-y (scale-char-x char xfac) yfac ))
 
 ;;;;order of operations
 ;; fix edge wrap -- repeat last row (x2?)
@@ -684,12 +536,6 @@ Return a new array, or write into the optional 3rd argument."
               :initial-value x
               :from-end t)))
 
-;; (let* ((char-list (get-char-list numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset ))
-;;        (double-height-chars (double-height char-list))
-;;        (136-col-chars (mapcar (compose #'double-height #'stretch-char) char-list))
-;;        (136-col-double-chars (mapcar (compose #'double-height #'stretch-char #'double-width) char-list))
-;;        (80-col-chars (mapcar (compose #'double-height #'stretch-char #'fix-end) char-list))
-;;        (80-col-double-chars (mapcar (compose #'double-height #'fix-end #'stretch-char #'double-width #'fix-end) char-list))))
 (defvar 136-col-chars (mapcar (compose #'double-height #'stretch-char) char-list))
 (defvar 136-col-double-chars (mapcar (compose #'double-height #'stretch-char #'double-width) char-list))
 (defvar 80-col-chars (mapcar (compose #'double-height #'stretch-char #'fix-end) char-list))
@@ -711,15 +557,8 @@ Return a new array, or write into the optional 3rd argument."
                         (concatenate 'string acc (format nil "~D" curr)))
                     row :initial-value ""))
         (aops:split char 1)))
-;; (length "12345")
-;; (let ( (str "00000000000000010000000000011001") )
-;;   (format nil ( format nil "~~~A,'0X"  (floor (length str ) 4)) (parse-integer str :radix 2))
-;;   )
 (defun binstr-to-hex (str i)
   (format nil ( format nil "~~~A,'0X"  (floor (length str ) 4)) (parse-integer str :radix 2)))
-;;; old version
-;; (defun binstr-to-hex (str i)
-;;   (format nil "~4,'0X" (parse-integer str :radix 2)))
 (defun binchar-to-hex (char ) (mapa #'binstr-to-hex char))
 (defun array-char-to-bdf-char (char)
   (binchar-to-hex (rows-to-string (pad-char char))))
@@ -745,8 +584,7 @@ Return a new array, or write into the optional 3rd argument."
          (cdr hex-list)
          (cdr char-list)
          (cons (list (get-hex-string hex) char)
-               combo)
-         ))))
+               combo)))))
 
 (defvar zipped-hex-chars
   (zip-hex-and-char hexes 80-col-chars))
@@ -776,6 +614,7 @@ Return a new array, or write into the optional 3rd argument."
   (let*
       ((height (aops:nrow (cadar zipped-hex-chars))))
     (format nil "SIZE ~d 75 75"  height )))
+
 (defun get-bounding-box ( zipped )
   (let*
       ((width (aops:ncol (cadar zipped-hex-chars)))
@@ -789,17 +628,18 @@ Return a new array, or write into the optional 3rd argument."
       ((height (aops:nrow (cadar zipped-hex-chars)))
        (descent (/ height 5) ))
     (format nil "FONT_DESCENT ~d"  descent )))
+
 (defun get-ascent ( zipped )
   (let*
       ((height (aops:nrow (cadar zipped-hex-chars)))
        (descent (/ height 5) )
        (ascent (- height descent)))
     (format nil "FONT_ASCENT ~d"  ascent )))
+
 (defun get-chars (zipped)
   (format nil "CHARS ~d" (length zipped) ))
 
-
-;; convert list to file
+;; convert list to file string
 (defun to-nl-string ( string-list )
   (format nil "~{~A~^~%~}" string-list))
 
@@ -813,7 +653,6 @@ Return a new array, or write into the optional 3rd argument."
           height
           (* 10 height)
           (* width 10)))
-;; (generate-font-name 'dec 'vt220 10 20 'normal 'normal )
 
 ;; build the font header
 (defun build-header (zipped width-type style-name )
@@ -839,6 +678,7 @@ Return a new array, or write into the optional 3rd argument."
        (height (aops:nrow raw-char))
        (descent (- (/ height 5) )))
     (format nil "BBX ~d ~d ~d ~d" width height 0 descent)))
+
 ;;;; building character
 (defun build-char (zipped-char)
   (let* ((unihex (get-hex-string zipped-char))
@@ -866,17 +706,7 @@ Return a new array, or write into the optional 3rd argument."
 
 
 ;; build complete file
-;; (with-open-file (str "./dec.bdf"
-;;                      :direction :output
-;;                      :if-exists :supersede
-;;                      :if-does-not-exist :create)
-
-;;   (format str "~A" (to-nl-string (list (build-header zipped-hex-chars "normal" "normal")
-;;                                        (build-all-chars zipped-hex-chars)
-;;                                        "ENDFONT")) ))
-
 (defun write-font (zipped-hex-chars width-type style-name)
-
   (let* ((width (aops:ncol (cadar zipped-hex-chars)))
          (height (aops:nrow (cadar zipped-hex-chars)))
          (descent (- (/ height 5) )))
@@ -888,13 +718,11 @@ Return a new array, or write into the optional 3rd argument."
       (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name)
                                            (build-all-chars zipped-hex-chars)
                                            "ENDFONT"
-                                           "")) ))))
+                                           ""))))))
 
-;; (write-font zipped-hex-chars-80-col-double 'wide "80col")
 (defun write-chars (chars width-type style-name)
   (write-font (zip-hex-and-char hexes chars) width-type style-name ))
-;; (write-chars 80-col-double-chars 'wide "80col")
-;; (write-chars 80-col-double-chars 'wide "80col")
+
 ;; size is (xscale yscale)
 (defun write-chars-in-sizes (chars sizes width-type col-num)
   (mapcar #'(lambda (size)
@@ -939,13 +767,8 @@ Return a new array, or write into the optional 3rd argument."
 
 
 
-;; (mapcar #'pretty-print (mapcar #'80-col-double-width-fun char-list))
 ;; (mapcar #'pretty-print (mapcar (lambda (char) (double-width char) )  char-list ))
-
 ;; (mapcar #'pretty-print  char-list)
-;; (mapcar #'pretty-print (fix-end char-list))
-
-;; (defvar 80-col-double-chars (mapcar (compose #'double-height #'fix-end #'stretch-char #'double-width #'fix-end) char-list))
 
 ;; write the char set
 (with-open-file (str "./dist/dec.set" 
