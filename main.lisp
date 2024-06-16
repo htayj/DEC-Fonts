@@ -629,16 +629,19 @@ Return a new array, or write into the optional 3rd argument."
 (defun to-nl-string ( string-list )
   (format nil "~{~A~^~%~}" string-list))
 
-(defun generate-font-name (foundry face width height width-type style-name)
+(defun generate-font-name (foundry face width height width-type style-name &optional rel-width)
   (format nil
-          "-~A-~A-medium-r-~A-~A-~A-~A-75-75-m-~A-iso10646-1"
+          "-~A-~A-medium-r-~A-~A-~A-~A-75-75-m-~A-iso10646-1~A"
           foundry
           face
           width-type
           style-name
           height
           (* 10 height)
-          (* width 10)))
+          (* width 10)
+          (if rel-width
+              (format nil "-relwidth~A" rel-width)
+              "")))
 
 (defun create-string-prop (key val)
   (format nil "~A \"~A\"" key val))
@@ -646,7 +649,7 @@ Return a new array, or write into the optional 3rd argument."
   (format nil "~A ~A" key val))
 
 ;; build the font header
-(defun build-header (zipped width-type style-name )
+(defun build-header (zipped width-type style-name rel-width)
   (let* ((width (aops:ncol (cadar zipped)))
          (height (aops:nrow (cadar zipped)))
          (descent (- (/ height 5) )))
@@ -659,6 +662,7 @@ Return a new array, or write into the optional 3rd argument."
                         (create-string-prop 'foundry "DEC")
                         (create-string-prop 'family_name "vt220")
                         (create-string-prop 'weight_name "medium")
+                        (create-prop 'relative_setwidth rel-width)
                         (create-prop 'slant "r")
                         (create-string-prop 'setwidth_name width-type)
                         (create-string-prop 'add_style_name style-name)
@@ -716,32 +720,34 @@ Return a new array, or write into the optional 3rd argument."
 
 
 ;; build complete file
-(defun write-font (zipped-hex-chars width-type style-name)
+(defun write-font (zipped-hex-chars width-type style-name rel-width)
   (let* ((width (aops:ncol (cadar zipped-hex-chars)))
          (height (aops:nrow (cadar zipped-hex-chars)))
          (descent (- (/ height 5) )))
-    (print (format nil "writing font: ~A" (generate-font-name 'dec 'vt220 width height width-type style-name)))
-    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-font-name 'dec 'vt220 width height width-type style-name))
+    (print (format nil "writing font: ~A" (generate-font-name 'dec 'vt220 width height width-type style-name rel-width)))
+    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-font-name 'dec 'vt220 width height width-type style-name rel-width))
                          :direction :output
                          :if-exists :supersede
                          :if-does-not-exist :create)
-      (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name)
+      (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name rel-width)
                                            (build-all-chars zipped-hex-chars)
                                            "ENDFONT"
                                            ""))))))
 
-(defun write-chars (chars width-type style-name)
-  (write-font (zip-hex-and-char hexes chars) width-type style-name ))
+(defun write-chars (chars width-type style-name rel-width)
+  (write-font (zip-hex-and-char hexes chars) width-type style-name rel-width ))
 
 ;; size is (xscale yscale)
 (defun write-chars-in-sizes (chars sizes width-type col-num)
   (mapcar #'(lambda (size)
               (write-chars (mapcar #'(lambda (char)
                                        (scale-height (scale-width char (car size))
-                                                     ( cadr size )))
+                                                     ( cadr size ) ))
                                    chars)
                            width-type
-                           (format nil "~A~Ax~Ay" col-num (car size) (cadr size))))
+                           col-num
+                           (caddr size)))
+
           sizes))
 
 ;; read and process file
@@ -750,12 +756,22 @@ Return a new array, or write into the optional 3rd argument."
 ;; zip with unicode point
 ;; output to file
 
+(defun get-relative-width (width height)
+  (cond
+    ((eq height width) 90)
+    ((eq (/ height width) 2) 50)
+    ((eq (/ height width) 3) 50)
+    )
+  )
+(eq (/ 4 3) 2)
+4/3
+(caddr '(1 2 3 4))
 (let* ((char-list (get-char-list numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset ))
-       (sizes '((1 1) (1 2) (1 3)
-                (2 2) (2 3) (2 4) (2 5)
-                (3 3) (3 4) (3 5) (3 6) (3 7)
-                (4 4) (4 5) (4 6) (4 7) (4 8) (4 9)
-                (5 5) (5 6) (5 7) (5 8) (5 9) (5 10) (5 11)))
+       (sizes '((1 1 90) (1 2 50) (1 3 10)
+                (2 2 90) (2 3 70) (2 4 50) (2 5 30) (2 6 10)
+                (3 3 90) (3 4 80) (3 5 70) (3 6 50) (3 7 40) (3 9 30)
+                (4 4 90) (4 5 80) (4 6 70) (4 7 60) (4 8 50) (4 9 40) (4 10 30) (4 11 20) (4 12 10)
+                (5 5 90) (5 6 80) (5 8 70 ) (5 9 60) (5 10 50) (5 12 40) (5 15 30) (5 18 20) (5 20 10)))
        (136-col-chars (mapcar (compose #'stretch-char) char-list))
        (136-col-double-chars (mapcar (compose #'stretch-char #'double-width) char-list))
        (80-col-chars (mapcar (compose #'stretch-char #'fix-end) char-list))
