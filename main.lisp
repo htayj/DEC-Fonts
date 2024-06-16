@@ -1,7 +1,7 @@
 (ql:quickload "png")
 (ql:quickload :array-operations)
 
-;; need unicode points: d7, 
+;; need unicode points: 0x00d7, 0x2019
 (defvar hexes '())
 (setq hexes
       '( ("0020" "space")
@@ -660,7 +660,7 @@ Return a new array, or write into the optional 3rd argument."
                         "STARTPROPERTIES 22"
                         (create-string-prop 'fontname_registry "")
                         (create-string-prop 'foundry "DEC")
-                        (create-string-prop 'family_name "vt220")
+                        (create-string-prop 'family_name (format nil "vt220_~A_~A_rwidth~A" style-name width-type rel-width ))
                         (create-string-prop 'weight_name "medium")
                         (create-prop 'relative_setwidth rel-width)
                         (create-prop 'slant "r")
