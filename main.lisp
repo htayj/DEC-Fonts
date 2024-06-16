@@ -1,7 +1,7 @@
 (ql:quickload "png")
 (ql:quickload :array-operations)
 
-;; need unicode points: 0x00d7, 0x2019
+;; need unicode points: 0x00d7, 0x2019 0x252C
 (defvar hexes '())
 (setq hexes
       '( ("0020" "space")
@@ -629,6 +629,15 @@ Return a new array, or write into the optional 3rd argument."
 (defun to-nl-string ( string-list )
   (format nil "~{~A~^~%~}" string-list))
 
+(defun generate-file-name (foundry face width height width-type style-name &optional rel-width)
+  (format nil
+          "~A-~A-~A-~A-~Ax~A"
+          foundry
+          face
+          width-type
+          style-name
+          width
+          height))
 (defun generate-font-name (foundry face width height width-type style-name &optional rel-width)
   (format nil
           "-~A-~A-medium-r-~A-~A-~A-~A-75-75-m-~A-iso10646-1~A"
@@ -724,8 +733,8 @@ Return a new array, or write into the optional 3rd argument."
   (let* ((width (aops:ncol (cadar zipped-hex-chars)))
          (height (aops:nrow (cadar zipped-hex-chars)))
          (descent (- (/ height 5) )))
-    (print (format nil "writing font: ~A" (generate-font-name 'dec 'vt220 width height width-type style-name rel-width)))
-    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-font-name 'dec 'vt220 width height width-type style-name rel-width))
+    (print (format nil "writing font: ~A" (generate-file-name 'dec 'vt220 width height width-type style-name rel-width)))
+    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'dec 'vt220 width height width-type style-name rel-width))
                          :direction :output
                          :if-exists :supersede
                          :if-does-not-exist :create)
