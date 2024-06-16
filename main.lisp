@@ -563,7 +563,6 @@ Return a new array, or write into the optional 3rd argument."
 (defun array-char-to-bdf-char (char)
   (binchar-to-hex (rows-to-string (pad-char char))))
 
-
 ;; convert to bdf format
 
 (defun get-hex-string (char-cons)
@@ -586,20 +585,7 @@ Return a new array, or write into the optional 3rd argument."
          (cons (list (get-hex-string hex) char)
                combo)))))
 
-(defvar zipped-hex-chars
-  (zip-hex-and-char hexes 80-col-chars))
 
-(defvar zipped-hex-chars-80-col
-  (zip-hex-and-char hexes 80-col-chars))
-
-(defvar zipped-hex-chars-80-col-double
-  (zip-hex-and-char hexes 80-col-double-chars))
-
-(defvar zipped-hex-chars-136-col
-  (zip-hex-and-char hexes 136-col-double-chars))
-
-(defvar zipped-hex-chars-136-col-double
-  (zip-hex-and-char hexes 136-col-double-chars))
 ;;accoring to https://www.vt100.net/docs/vt100-tm/chapter1.html the aspect ratio is
 ;; 3.35 x 2.0. Unsure if that is height to width or width to height, but it seems likely
 ;; that it is height to width
@@ -612,26 +598,26 @@ Return a new array, or write into the optional 3rd argument."
 
 (defun get-size ( zipped )
   (let*
-      ((height (aops:nrow (cadar zipped-hex-chars))))
+      ((height (aops:nrow (cadar zipped))))
     (format nil "SIZE ~d 75 75"  height )))
 
 (defun get-bounding-box ( zipped )
   (let*
-      ((width (aops:ncol (cadar zipped-hex-chars)))
-       (height (aops:nrow (cadar zipped-hex-chars)))
+      ((width (aops:ncol (cadar zipped)))
+       (height (aops:nrow (cadar zipped)))
        (descent (- (/ height 5) )))
     (format nil "FONTBOUNDINGBOX ~d ~d ~d ~d" width height 0 descent)))
 
 
 (defun get-descent ( zipped )
   (let*
-      ((height (aops:nrow (cadar zipped-hex-chars)))
+      ((height (aops:nrow (cadar zipped)))
        (descent (/ height 5) ))
     (format nil "FONT_DESCENT ~d"  descent )))
 
 (defun get-ascent ( zipped )
   (let*
-      ((height (aops:nrow (cadar zipped-hex-chars)))
+      ((height (aops:nrow (cadar zipped)))
        (descent (/ height 5) )
        (ascent (- height descent)))
     (format nil "FONT_ASCENT ~d"  ascent )))
@@ -654,16 +640,40 @@ Return a new array, or write into the optional 3rd argument."
           (* 10 height)
           (* width 10)))
 
+(defun create-string-prop (key val)
+  (format nil "~A \"~A\"" key val))
+(defun create-prop (key val)
+  (format nil "~A ~A" key val))
+
 ;; build the font header
 (defun build-header (zipped width-type style-name )
-  (let* ((width (aops:ncol (cadar zipped-hex-chars)))
-         (height (aops:nrow (cadar zipped-hex-chars)))
+  (let* ((width (aops:ncol (cadar zipped)))
+         (height (aops:nrow (cadar zipped)))
          (descent (- (/ height 5) )))
     (to-nl-string (list "STARTFONT 2.1"
                         (format nil "FONT ~A" (generate-font-name 'dec 'vt220 width height width-type style-name)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
                         (get-size zipped)
                         (get-bounding-box zipped)
-                        "STARTPROPERTIES 2"
+                        "STARTPROPERTIES 22"
+                        (create-string-prop 'fontname_registry "")
+                        (create-string-prop 'foundry "DEC")
+                        (create-string-prop 'family_name "vt220")
+                        (create-string-prop 'weight_name "medium")
+                        (create-prop 'slant "r")
+                        (create-string-prop 'setwidth_name width-type)
+                        (create-string-prop 'add_style_name style-name)
+                        (create-prop 'pixel_size height)
+                        (create-prop 'point_size (* 10 height ))
+                        (create-prop 'resolution_x 75)
+                        (create-prop 'resolution_y 75)
+                        (create-string-prop 'spacing "m")
+                        (create-string-prop 'charset_registry "ISO10646")
+                        (create-string-prop 'charset_encoding "1")
+                        (create-prop 'cap_height (- height (/ height 5) (/ height 10)))
+                        (create-prop 'x_height (/ height 2))
+                        (create-prop 'weight 10)
+                        (create-prop 'quad_width width)
+                        (create-prop 'default_char 9670)
                         (get-ascent zipped)
                         (get-descent zipped)
                         (format nil "AVERAGE_WIDTH ~A" (* 10 width))
@@ -733,15 +743,6 @@ Return a new array, or write into the optional 3rd argument."
                            width-type
                            (format nil "~A~Ax~Ay" col-num (car size) (cadr size))))
           sizes))
-(cadr (list 1 2))
-
-(write-chars-in-sizes 80-col-chars '((1 1) (1 2) (1 3)
-                                     (2 2) (2 3) (2 4) (2 5)
-                                     (3 3) (3 4) (3 5) (3 6) (3 7)
-                                     (4 4) (4 5) (4 6) (4 7) (4 8) (4 9)
-                                     (5 5) (5 6) (5 7) (5 8) (5 9) (5 10) (5 11))
-                      "normal" "80col")
-
 
 ;; read and process file
 ;; split into 136 vs 80 col
@@ -759,10 +760,10 @@ Return a new array, or write into the optional 3rd argument."
        (136-col-double-chars (mapcar (compose #'stretch-char #'double-width) char-list))
        (80-col-chars (mapcar (compose #'stretch-char #'fix-end) char-list))
        (80-col-double-chars (mapcar (compose #'fix-end #'stretch-char #'double-width #'fix-end) char-list)))
-  (write-chars-in-sizes 136-col-chars sizes "normal" "136col")
-  (write-chars-in-sizes 136-col-double-chars sizes "wide" "136col")
-  (write-chars-in-sizes 80-col-chars sizes "normal" "80col")
-  (write-chars-in-sizes 80-col-double-chars sizes "wide" "80col"))
+  (write-chars-in-sizes 136-col-chars sizes "Normal" "136col")
+  (write-chars-in-sizes 136-col-double-chars sizes "DoubleWide" "136col")
+  (write-chars-in-sizes 80-col-chars sizes "Normal" "80col")
+  (write-chars-in-sizes 80-col-double-chars sizes "DoubleWide" "80col"))
 
 
 
