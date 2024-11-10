@@ -1,7 +1,7 @@
 (ql:quickload "png")
 (ql:quickload :array-operations)
 
-;; need unicode points: 0x00d7, 0x2019 0x252C
+;; need unicode points: 0x00d7, 0x2019 0x252C, 201c, 201d
 (defvar hexes '())
 (setq hexes
       '( ("0020" "space")
@@ -12,7 +12,7 @@
         ("240D" "CR")
         ("240A" "LF")
         ("00B0" "degree")
-        ("00B1" "plusminus");; duplicate
+        ("00B1" "plusminus")
         ("2424" "NL")
         ("240B" "VT")
         ("2518" "box-upper-left")
@@ -20,6 +20,7 @@
         ("250C" "box-lower-right")
         ("2514" "box-upper-right")
         ("253C" "box-cross")
+        ;; col 
         ("23BA" "1/5 line")
         ("23BB" "2/5 line")
         ("2500" "box-draw-line")
@@ -28,7 +29,7 @@
         ("251C" "box-T-right")
         ("2524" "box-T-left")
         ("2534" "box-T-up")
-        ("253C" "box-T-down")
+        ("252C" "box-T-down")
         ("2502" "box-vetical-line")
         ("2264" "less-equal")
         ("2265" "greater-equal")
@@ -36,6 +37,7 @@
         ("2260" "not-equal")
         ("00A3" "pound")
         ("00b7" "dot")
+        ;; col 
         ("2E2E" "reverse question mark")
         ("0021" "exclamation")
         ("0022" "quote")
@@ -52,6 +54,7 @@
         ("002D" "dash")
         ("002E" "period")
         ("002F" "forward slash")
+        ;; col 
         ("0030" "0")
         ("0031" "1")
         ("0032" "2")
@@ -68,6 +71,7 @@
         ("003D" "=")
         ("003E" ">")
         ("003F" "?")
+        ;; col 
         ("0040" "@")
         ("0041" "A")
         ("0042" "B")
@@ -84,6 +88,7 @@
         ("004D" "M")
         ("004E" "N")
         ("004F" "O")
+        ;; col 
         ("0050" "P")
         ("0051" "Q")
         ("0052" "R")
@@ -100,6 +105,7 @@
         ("005D" "]")
         ("005E" "^")
         ("005F" "_")
+        ;; col 
         ("0060" "`")
         ("0061" "a")
         ("0062" "b")
@@ -116,6 +122,7 @@
         ("006d" "m")
         ("006e" "n")
         ("006f" "o")
+        ;; col 
         ("0070" "p")
         ("0071" "q")
         ("0072" "r")
@@ -132,6 +139,27 @@
         ("007D" "}")
         ("007E" "~")
         ("007F" "DEL")
+        ;; col
+        ;;dashes
+        ("2010" "hyphen")
+        ("2011" "nb hyphen")
+        ("2012" "figure dash")
+        ("2013" "en dash")
+        ("2014" "em dash")
+        ("2015" "horizontal bar")
+        ;;general punct
+        ("2016" "doulbe vertical line")
+        ("2017" "doulbe low line")
+        ;;quotation marks and apostrophies
+        ("2018" "left single quotation mark")
+        ("2019" "right single quotation mark")
+        ("201A" "single low-9 quotation mark")
+        ("201B" "single high-reversed-9 quotation mark")
+        ("201C" "left double quotation mark")
+        ("201D" "right double quotation mark")
+        ("201E" "double low-9 quotation mark")
+        ("201F" "double high-reserved-9 quotation mark")
+        ;; col
         ()
         ()
         ()
@@ -148,26 +176,11 @@
         ()
         ()
         ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
-        ()
+        ;; col
         ()
         ("00A1" "Inverted exclamation mark")
         ("00A2" "Cent sign")
-        ("00A3" "Pound sign")
+        ()
         ("00A8" "Diaeresis")
         ("00A5" "Yen sign")
         ("00A6" "Broken bar")
@@ -177,17 +190,18 @@
         ("00AA" "Feminine ordinal indicator")
         ("00AB" "Left-pointing double angle quotation mark")
         ("00AC" "Not sign")
-        ()
+        ("00D7" "multiplication sign")
         ("00AE" "Registered sign")
         ("00AF" "Macron")
-        ("00B0" "Degree symbol")
-        ("00B1" "Plus-minus sign")
+        ;; col
+        ()
+        ()
         ("00B2" "Superscript two")
         ("00B3" "Superscript three")
         ("00B4" "Acute accent")
         ("00B5" "Micro sign")
         ("00B6" "Pilcrow sign")
-        ("00B7" "Middle dot")
+        ("2022" "Bullet")
         ("00B8" "Cedilla  CUSTOM")
         ("00B9" "Superscript one")
         ("00BA" "Masculine ordinal indicator")
@@ -196,6 +210,7 @@
         ("00BD" "Vulgar fraction one half")
         ("00BE" "Vulgar fraction three quarters")
         ("00BF" "Inverted question mark")
+        ;; col
         ("00C0" "Latin Capital Letter A with grave")
         ("00C1" "Latin Capital letter A with acute")
         ("00C2" "Latin Capital letter A with circumflex")
@@ -251,7 +266,7 @@
         ("00F4" "Latin Small Letter O with circumflex")
         ("00F5" "Latin Small Letter O with tilde")
         ("00F6" "Latin Small Letter O with diaeresis")
-        ("0152" "small OE")
+        ("0153" "small OE")
         ("00F8" "Latin Small Letter O with stroke")
         ("00F9" "Latin Small Letter U with grave")
         ("00FA" "Latin Small Letter U with acute")
@@ -428,7 +443,7 @@ Return a new array, or write into the optional 3rd argument."
 
 
 (defun get-cell-by-xy (x y cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-  (get-cell (imagetoternarray "./rom-separated.png")
+  (get-cell (imagetoternarray "./rom-separated-extended.png")
             (x-coords x cell-width cell-col-pad y-offset)
             (y-coords y cell-height cell-row-pad y-offset)
             8
@@ -563,10 +578,30 @@ Return a new array, or write into the optional 3rd argument."
 (defun array-char-to-bdf-char (char)
   (binchar-to-hex (rows-to-string (pad-char char))))
 
-;; convert to bdf format
-
 (defun get-hex-string (char-cons)
   (car char-cons ))
+
+;; check for duplicates
+(defun tay-duplicates (lst &optional (acc '()))
+  (let* ((this-item (car lst))
+         (next-item (cadr lst))
+         (rest-items (cdr lst))
+         (new-acc (if (string-equal this-item next-item)
+                      (cons this-item acc)
+                      acc) )
+         )
+    (if rest-items (tay-duplicates rest-items new-acc) new-acc )))
+
+(let( 
+     (dupes (tay-duplicates (remove nil  (sort (mapcar #'get-hex-string hexes) #'string-lessp ) )) ) )
+  (if dupes
+      (print (format nil "duplicates detected: ~A" dupes ) ))
+  )
+(sort (mapcar #'get-hex-string hexes) #'string-lessp)
+
+;; convert to bdf format
+
+
 
 (defun get-dec-string (char-cons)
   (format nil "~d" (parse-integer (get-hex-string char-cons) :radix 16 ) ))
