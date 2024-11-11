@@ -22,7 +22,7 @@ U+23BD # 5/5 line
 U+251C # box-T-right
 U+2524 # box-T-left
 U+2534 # box-T-up
-U+253C # box-T-down
+U+252C # box-T-down
 U+2502 # box-vetical-line
 U+2264 # less-equal
 U+2265 # greater-equal
@@ -126,9 +126,24 @@ U+007C # |
 U+007D # }
 U+007E # ~
 U+007F # DEL
+U+2010 # hyphen
+U+2011 # nb hyphen
+U+2012 # figure dash
+U+2013 # en dash
+U+2014 # em dash
+U+2015 # horizontal bar
+U+2016 # doulbe vertical line
+U+2017 # doulbe low line
+U+2018 # left single quotation mark
+U+2019 # right single quotation mark
+U+201A # single low-9 quotation mark
+U+201B # single high-reversed-9 quotation mark
+U+201C # left double quotation mark
+U+201D # right double quotation mark
+U+201E # double low-9 quotation mark
+U+201F # double high-reserved-9 quotation mark
 U+00A1 # Inverted exclamation mark
 U+00A2 # Cent sign
-U+00A3 # Pound sign
 U+00A8 # Diaeresis
 U+00A5 # Yen sign
 U+00A6 # Broken bar
@@ -138,16 +153,15 @@ U+00A9 # Copyright sign
 U+00AA # Feminine ordinal indicator
 U+00AB # Left-pointing double angle quotation mark
 U+00AC # Not sign
+U+00D7 # multiplication sign
 U+00AE # Registered sign
 U+00AF # Macron
-U+00B0 # Degree symbol
-U+00B1 # Plus-minus sign
 U+00B2 # Superscript two
 U+00B3 # Superscript three
 U+00B4 # Acute accent
 U+00B5 # Micro sign
 U+00B6 # Pilcrow sign
-U+00B7 # Middle dot
+U+2022 # Bullet
 U+00B8 # Cedilla  CUSTOM
 U+00B9 # Superscript one
 U+00BA # Masculine ordinal indicator
@@ -211,7 +225,7 @@ U+00F3 # Latin Small Letter O with acute
 U+00F4 # Latin Small Letter O with circumflex
 U+00F5 # Latin Small Letter O with tilde
 U+00F6 # Latin Small Letter O with diaeresis
-U+0152 # small OE
+U+0153 # small OE
 U+00F8 # Latin Small Letter O with stroke
 U+00F9 # Latin Small Letter U with grave
 U+00FA # Latin Small Letter U with acute

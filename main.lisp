@@ -1,6 +1,6 @@
 (ql:quickload "png")
 (ql:quickload :array-operations)
-
+;; https://man.archlinux.org/man/xterm.1#forceBoxChars
 ;; need unicode points: 0x00d7, 0x2019 0x252C, 201c, 201d
 (defvar hexes '())
 (setq hexes
@@ -443,7 +443,7 @@ Return a new array, or write into the optional 3rd argument."
 
 
 (defun get-cell-by-xy (x y cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-  (get-cell (imagetoternarray "./rom-separated-extended.png")
+  (get-cell (imagetoternarray "./rom-separated_extended.png")
             (x-coords x cell-width cell-col-pad y-offset)
             (y-coords y cell-height cell-row-pad y-offset)
             8
@@ -675,7 +675,7 @@ Return a new array, or write into the optional 3rd argument."
           height))
 (defun generate-font-name (foundry face width height width-type style-name &optional rel-width)
   (format nil
-          "-~A-~A-medium-r-~A-~A-~A-~A-75-75-m-~A-iso10646-1~A"
+          "-~A-~A-medium-r-~A-~A-~A-~A-75-75-c-~A-iso10646-1~A"
           foundry
           face
           width-type
@@ -698,35 +698,37 @@ Return a new array, or write into the optional 3rd argument."
          (height (aops:nrow (cadar zipped)))
          (descent (- (/ height 5) )))
     (to-nl-string (list "STARTFONT 2.1"
-                        (format nil "FONT ~A" (generate-font-name 'dec 'vt220 width height width-type style-name)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
+                        (format nil "FONT ~A" (generate-font-name 'DIGITAL 'vt220 width height width-type style-name)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
                         (get-size zipped)
                         (get-bounding-box zipped)
-                        "STARTPROPERTIES 22"
-                        (create-string-prop 'fontname_registry "")
-                        (create-string-prop 'foundry "DEC")
-                        (create-string-prop 'family_name (format nil "vt220_~A_~A_rwidth~A" style-name width-type rel-width ))
+                        "STARTPROPERTIES 21"
+                        ;; (create-string-prop 'fontname_registry "")
+                        (create-string-prop 'foundry "DIGITAL")
+                        ;; if the xlfd properties dont work correctly
+                        ;;(create-string-prop 'family_name (format nil "vt220_~A_~A_rwidth~A" style-name width-type rel-width )) 
+                        (create-string-prop 'family_name "vt220")
                         (create-string-prop 'weight_name "medium")
                         (create-prop 'relative_setwidth rel-width)
-                        (create-prop 'slant "r")
+                        (create-string-prop 'slant "r")
                         (create-string-prop 'setwidth_name width-type)
                         (create-string-prop 'add_style_name style-name)
                         (create-prop 'pixel_size height)
                         (create-prop 'point_size (* 10 height ))
                         (create-prop 'resolution_x 75)
                         (create-prop 'resolution_y 75)
-                        (create-string-prop 'spacing "m")
+                        (create-string-prop 'spacing "c")
                         (create-string-prop 'charset_registry "ISO10646")
                         (create-string-prop 'charset_encoding "1")
                         (create-prop 'cap_height (- height (/ height 5) (/ height 10)))
                         (create-prop 'x_height (/ height 2))
                         (create-prop 'weight 10)
                         (create-prop 'quad_width width)
-                        (create-prop 'default_char 9670)
+                        ;; (create-prop 'default_char 9670)
                         (get-ascent zipped)
                         (get-descent zipped)
                         (format nil "AVERAGE_WIDTH ~A" (* 10 width))
                         "ENDPROPERTIES"
-                        (get-chars zipped)) ) ))
+                        (get-chars (remove nil  (sort (mapcar #'get-hex-string hexes) #'string-lessp ) ))) ) ))
 (defun char-start (unihex)
   (format nil "STARTCHAR U+~A" unihex))
 
@@ -746,8 +748,8 @@ Return a new array, or write into the optional 3rd argument."
     (list (char-start unihex)
           (format nil "ENCODING ~A" unidec)
           "SWIDTH 1000 0"
-          (get-bbx char-raw)
           (format nil "DWIDTH ~d 0" (aops:ncol char-raw))
+          (get-bbx char-raw)
           "BITMAP"
           (to-nl-string char-bit)
           "ENDCHAR")))
@@ -768,8 +770,8 @@ Return a new array, or write into the optional 3rd argument."
   (let* ((width (aops:ncol (cadar zipped-hex-chars)))
          (height (aops:nrow (cadar zipped-hex-chars)))
          (descent (- (/ height 5) )))
-    (print (format nil "writing font: ~A" (generate-file-name 'dec 'vt220 width height width-type style-name rel-width)))
-    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'dec 'vt220 width height width-type style-name rel-width))
+    (print (format nil "writing font: ~A" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name rel-width)))
+    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name rel-width))
                          :direction :output
                          :if-exists :supersede
                          :if-does-not-exist :create)
@@ -811,19 +813,25 @@ Return a new array, or write into the optional 3rd argument."
 4/3
 (caddr '(1 2 3 4))
 (let* ((char-list (get-char-list numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset ))
-       (sizes '((1 1 90) (1 2 50) (1 3 10)
-                (2 2 90) (2 3 70) (2 4 50) (2 5 30) (2 6 10)
-                (3 3 90) (3 4 80) (3 5 70) (3 6 50) (3 7 40) (3 9 30)
-                (4 4 90) (4 5 80) (4 6 70) (4 7 60) (4 8 50) (4 9 40) (4 10 30) (4 11 20) (4 12 10)
-                (5 5 90) (5 6 80) (5 8 70 ) (5 9 60) (5 10 50) (5 12 40) (5 15 30) (5 18 20) (5 20 10)))
+       ;; uncomment this line to get more sizes. However, I dont use them and they interferre with font selection enough to be annoying
+       ;; (sizes '((1 1 90) (1 2 50) (1 3 10) 
+       ;;          (2 2 90) (2 3 70) (2 4 50) (2 5 30) (2 6 10)
+       ;;          (3 3 90) (3 4 80) (3 5 70) (3 6 50) (3 7 40) (3 9 30)
+       ;;          (4 4 90) (4 5 80) (4 6 70) (4 7 60) (4 8 50) (4 9 40) (4 10 30) (4 11 20) (4 12 10)
+       ;;          (5 5 90) (5 6 80) (5 8 70 ) (5 9 60) (5 10 50) (5 12 40) (5 15 30) (5 18 20) (5 20 10)))
+       (sizes '((1 2 50)
+                (2 4 50)
+                (3 6 50)
+                (4 8 50) 
+                (5 10 50)))
        (136-col-chars (mapcar (compose #'stretch-char) char-list))
        (136-col-double-chars (mapcar (compose #'stretch-char #'double-width) char-list))
        (80-col-chars (mapcar (compose #'stretch-char #'fix-end) char-list))
        (80-col-double-chars (mapcar (compose #'fix-end #'stretch-char #'double-width #'fix-end) char-list)))
   (write-chars-in-sizes 136-col-chars sizes "Normal" "136col")
-  (write-chars-in-sizes 136-col-double-chars sizes "DoubleWide" "136col")
+  (write-chars-in-sizes 136-col-double-chars sizes "Wide" "136col")
   (write-chars-in-sizes 80-col-chars sizes "Normal" "80col")
-  (write-chars-in-sizes 80-col-double-chars sizes "DoubleWide" "80col"))
+  (write-chars-in-sizes 80-col-double-chars sizes "Wide" "80col"))
 
 
 
