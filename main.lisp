@@ -664,24 +664,26 @@ Return a new array, or write into the optional 3rd argument."
 (defun to-nl-string ( string-list )
   (format nil "~{~A~^~%~}" string-list))
 
-(defun generate-file-name (foundry face width height width-type style-name &optional rel-width)
+(defun generate-file-name (foundry face width height width-type style-name xres &optional rel-width)
   (format nil
-          "~A-~A-~A-~A-~Ax~A"
+          "~A-~A-~A-~A-~Ax~A-~Axres"
           foundry
           face
           width-type
           style-name
           width
-          height))
-(defun generate-font-name (foundry face width height width-type style-name &optional rel-width)
+          height
+          xres))
+(defun generate-font-name (foundry face width height width-type style-name xres &optional rel-width)
   (format nil
-          "-~A-~A-medium-r-~A-~A-~A-~A-75-75-c-~A-iso10646-1~A"
+          "-~A-~A-medium-r-~A-~A-~A-~A-~A-75-c-~A-iso10646-1~A"
           foundry
           face
           width-type
           style-name
           height
           (* 10 height)
+          xres
           (* width 10)
           (if rel-width
               (format nil "-relwidth~A" rel-width)
@@ -693,12 +695,12 @@ Return a new array, or write into the optional 3rd argument."
   (format nil "~A ~A" key val))
 
 ;; build the font header
-(defun build-header (zipped width-type style-name rel-width)
+(defun build-header (zipped width-type style-name xres rel-width )
   (let* ((width (aops:ncol (cadar zipped)))
          (height (aops:nrow (cadar zipped)))
          (descent (- (/ height 5) )))
     (to-nl-string (list "STARTFONT 2.1"
-                        (format nil "FONT ~A" (generate-font-name 'DIGITAL 'vt220 width height width-type style-name)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
+                        (format nil "FONT ~A" (generate-font-name 'DIGITAL 'vt220 width height width-type style-name xres)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
                         (get-size zipped)
                         (get-bounding-box zipped)
                         "STARTPROPERTIES 21"
@@ -766,25 +768,25 @@ Return a new array, or write into the optional 3rd argument."
 
 
 ;; build complete file
-(defun write-font (zipped-hex-chars width-type style-name rel-width)
+(defun write-font (zipped-hex-chars width-type style-name xres rel-width)
   (let* ((width (aops:ncol (cadar zipped-hex-chars)))
          (height (aops:nrow (cadar zipped-hex-chars)))
          (descent (- (/ height 5) )))
-    (print (format nil "writing font: ~A" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name rel-width)))
-    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name rel-width))
+    (print (format nil "writing font: ~A" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name xres rel-width)))
+    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name xres rel-width))
                          :direction :output
                          :if-exists :supersede
                          :if-does-not-exist :create)
-      (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name rel-width)
+      (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name xres rel-width)
                                            (build-all-chars zipped-hex-chars)
                                            "ENDFONT"
                                            ""))))))
 
-(defun write-chars (chars width-type style-name rel-width)
-  (write-font (zip-hex-and-char hexes chars) width-type style-name rel-width ))
+(defun write-chars (chars width-type style-name xres rel-width)
+  (write-font (zip-hex-and-char hexes chars) width-type style-name xres rel-width ))
 
 ;; size is (xscale yscale)
-(defun write-chars-in-sizes (chars sizes width-type col-num)
+(defun write-chars-in-sizes (chars sizes width-type xres col-num)
   (mapcar #'(lambda (size)
               (write-chars (mapcar #'(lambda (char)
                                        (scale-height (scale-width char (car size))
@@ -792,6 +794,7 @@ Return a new array, or write into the optional 3rd argument."
                                    chars)
                            width-type
                            col-num
+                           xres
                            (caddr size)))
 
           sizes))
@@ -828,10 +831,10 @@ Return a new array, or write into the optional 3rd argument."
        (136-col-double-chars (mapcar (compose #'stretch-char #'double-width) char-list))
        (80-col-chars (mapcar (compose #'stretch-char #'fix-end) char-list))
        (80-col-double-chars (mapcar (compose #'fix-end #'stretch-char #'double-width #'fix-end) char-list)))
-  (write-chars-in-sizes 136-col-chars sizes "Normal" "136col")
-  (write-chars-in-sizes 136-col-double-chars sizes "Wide" "136col")
-  (write-chars-in-sizes 80-col-chars sizes "Normal" "80col")
-  (write-chars-in-sizes 80-col-double-chars sizes "Wide" "80col"))
+  (write-chars-in-sizes 136-col-chars sizes "Normal" '75 "136col")
+  (write-chars-in-sizes 136-col-double-chars sizes "Normal" '150 "136col")
+  (write-chars-in-sizes 80-col-chars sizes "Normal" '75 "80col")
+  (write-chars-in-sizes 80-col-double-chars sizes "Normal" '150 "80col"))
 
 
 
