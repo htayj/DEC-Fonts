@@ -1,19 +1,16 @@
 * usage
-fonts are provided at a variety of sizes and scaling in the dist/fonts folder. use otb for x11 applications and psf for tty.
+fonts are provided at a variety of sizes and scaling in the dist/fonts folder. use otb/bdf for x11 applications and psf for tty.
 
 * info
-fonts labeled as wide are double width and have been created by doubling the width before stretching.
+fonts with 150 x resolution are double width and have been created by doubling the width before stretching as per the DEC manual
 
 * building
 run main.lisp using sbcl with quicklisp
 
-to generate the otb and psf fonts, run convert.bash ( bdf2psf required for the psf fonts)
+to generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and mkbolditalic required for bold/italic)
 
-* TODO screenshots
-
-* TODO cleanup code
-
-* TODO extend font to include modern common drawing characters
+*  screenshots
+[[file:sample.png]]
 
 * acknowledgements
 Giant thank you to Paul Flo Williams for creating vt100.net, which provided the rom dump image (rom-separated.png) that is parsed to create the font along with the instructions on how the font is created
