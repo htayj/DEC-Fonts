@@ -1,0 +1,17 @@
+#!/bin/bash
+UNICODELIST=$( grep -e "STARTCHAR" dist/fonts/bdf/DIGITAL-VT220-Normal-80col-10x20-75xres.bdf | sed "s/STARTCHAR U+//" | sort | xargs -I? printf "%b\n" "\u?" )  
+echo
+echo "---NORMAL---"
+column -c 120 <<<$UNICODELIST | sed -e "s/\s//g"
+echo
+echo "---DOUBLE WIDE---"
+column -c 120 <<<$UNICODELIST | sed -e "s/\s//g"|sed "s/^/\\\e#6/" |  xargs -0 -I? echo -e ?
+# paste -d "\t" <(cat <<<$UNICODELIST | column) <(cat <<<$UNICODELIST | column |sed "s/^/\\\e#6/" |  xargs -0 -I? echo -e ?)
+echo
+echo "---DOUBLE SIZE---"
+paste -d "\n" <(cat <<<$UNICODELIST | sed "s/^/\\\e#3/") <(cat <<<$UNICODELIST | sed "s/^/\\\e#4/") | xargs -0 -I? echo -e ? | column -c 180 | sed -e "s/\s//g"
+
+echo
+
+# colors
+# for x in {0..8}; do for i in {30..37}; do for a in {40..47}; do echo -ne "\e[$x;$i;$a""m\\\e[$x;$i;$a""m\e[0;37;40m "; done; echo; done; done; echo ""
