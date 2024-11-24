@@ -2,7 +2,7 @@ This is a faithful recreation of the DEC VT220 fonts, in bitmap font format, usi
 
 Fonts with 150 x resolution are double width and have been created by doubling the width before stretching as per the DEC manual
 
-Additionally, I have added a few new characters based on the original characters, mostly related to the General Punctuation unicode block (U+2000 - U+206F) since they are encountered regularly when using a terminal based web browser.
+Additionally, I have added a few new characters based on the original characters, mostly related to the General Punctuation unicode block (U+2000 - U+206F) since they are encountered regularly when using a terminal based web browser. Bold/italic/bolditalic fonts (generated using mkbolditalic) are also included although they are anachronistic to 
 
 It includes both 80col and 136col fonts.
 
@@ -16,6 +16,8 @@ git clone git@github.com:htayj/DEC-Fonts.git
 cp DEC-Fonts/dist/fonts/bdf ~/.local/share/fonts/digital
 fc-cache -fv
 #+END_SRC 
+
+You may need to restart any running applications for the font to become an option
 
 ** Xterm
 For usage with xterm, additionally make sure you have fontscale and fontdir generated and add the fontpath
@@ -43,7 +45,7 @@ You can test if it is correct by running the included fonttest script and compar
 * Building
 Run main.lisp using sbcl with quicklisp
 
-to generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and mkbolditalic required for bold/italic)
+to generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbolditalic]] required for bold/italic)
 
 * Screenshots
 [[file:sample.png]] [[file:nethack_DECgraphics.png]]
