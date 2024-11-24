@@ -7,6 +7,7 @@ maybe should revisit having multiple aspect ratios
 unsure how this works, but should get it set up so that it works in vttest with the correct 80col and 136col charsets
 * TODO make build script that doesn't require using a repl
 * TODO create github release
+* TODO add other Digital fonts (specifically vt100 which there is a rom dump for)
 * TODO create packages
 ** TODO create PKGBUILD and upload to aur
 ** TODO create DEB
