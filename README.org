@@ -1,5 +1,44 @@
-* usage
-fonts are provided at a variety of sizes and scaling in the dist/fonts folder. use otb/bdf for x11 applications and psf for tty.
+This is a faithful recreation of the DEC VT220 fonts, in bitmap font format, using a VT220 rom dump and performing the same operations on the pixels as described in the VT220 technical manual. The only departure is that the bitmap is stretched 2x vertically since the vertical pixel density of the VT220 was about 1/2 it's horizontal pixel density.
+
+
+Additionally, I have added a few new characters based on the original characters, mostly related to the General Punctuation unicode block (U+2000 - U+206F) since they are encountered regularly when using a terminal based web browser.
+
+
+It includes both 80col and 136col fonts.
+
+* Installation
+Fonts are provided at a variety of sizes and scaling in the dist/fonts folder. use otb/bdf for x11 applications and psf for tty. I recommend using the 80col font.
+
+** font server
+To install for most applications copy the bdf folder to somewhere that the font server will know about it (~/.local/share/fonts works in most cases) and reload the font server
+#+BEGIN_SRC bash
+git clone git@github.com:htayj/DEC-Fonts.git
+cp DEC-Fonts/dist/fonts/bdf ~/.local/share/fonts/digital
+fc-cache -fv
+#+END_SRC 
+
+** xterm
+For usage with xterm, additionally make sure you have fontscale and fontdir generated and add the fontpath
+#+BEGIN_SRC bash
+cd ~/.local/share/fonts/digital/
+mkfontscale
+mkfontdir
+xset +fp ~/.local/share/fonts/digital/
+#+END_SRC 
+
+you can then set your font in ~/.Xresources:
+#+BEGIN_SRC Xdefaults
+*VT100.font: -digital-vt220-medium-r-normal-80col-20-200-75-75-c-100-iso10646-1
+#+END_SRC 
+
+and load the new config
+#+BEGIN_SRC bash
+xrdb ~/.Xresources
+#+END_SRC 
+
+The font should work by default with xterm's double width emulation (\e#6).
+
+You can test if it is correct by running the included fonttest script and comparing to the screenshot below. The most noticeable difference is that double width p/q should have a small separation between the top of its stem and bowl (ie: the circle in the letter will appear slightly more circular and separated from the rest of the character and the top of the character will not be a continuous line but will instead by broken by 1 pixel in the 20px font)
 
 * info
 fonts with 150 x resolution are double width and have been created by doubling the width before stretching as per the DEC manual
@@ -10,9 +49,16 @@ run main.lisp using sbcl with quicklisp
 to generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and mkbolditalic required for bold/italic)
 
 *  screenshots
-[[file:sample.png]]
+[[file:sample.png]] [[file:nethack_DECgraphics.png]]
 
 * acknowledgements
 Giant thank you to Paul Flo Williams for creating vt100.net, which provided the rom dump image (rom-separated.png) that is parsed to create the font along with the instructions on how the font is created
 
 https://www.vt100.net/dec/vt220/glyphs
+
+* see also
+- [[https://web.archive.org/web/20160908194141/http://www.vtxemu.com/download.html][DEC Terminal Modern]] - a TTF modern interpretation of the VT220 font.
+- [[https://github.com/svofski/glasstty][GlassTTY]] - a TTF version of the font with scan lines 
+
+ 
+* [[file:TODOs.org][TODO-List]]
