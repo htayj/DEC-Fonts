@@ -136,7 +136,8 @@ Distribution packages are written under =dist/packages=:
 - =make package-arch VERSION=local-ci= builds =dist/packages/arch/dec-fonts-git-<version>-1-any.pkg.tar.*= from the current checkout.
 - =make package-void VERSION=local-ci= builds =dist/packages/void/dec-fonts-<version>_1.noarch.xbps= and a matching =.sha256= with =xbps-create=, using a Void container fallback if needed.
 - =make test-deb-package=, =make test-rpm-package=, =make test-arch-package=, and =make test-void-package= install the packages in Debian/Fedora/Arch/Void containers and verify the font files plus fontconfig visibility. Set ~CONTAINER_RUNTIME=podman~ if you prefer Podman.
-- AUR, Nix, Guix, Gentoo, and Void recipes are local/manual only for now; the GitHub Actions workflow builds/tests the release tarball plus DEB/RPM jobs, not those local/manual package ecosystems.
+- The GitHub Actions workflow builds/tests the generated-font release tarball, runs the Nix flake check in a container, and builds/tests the DEB, RPM, Arch, and Void package outputs. Tag pushes create or update a GitHub Release and attach the release tarball, distro package files, and matching checksums.
+- AUR, Guix, and Gentoo recipes remain local/manual only for now; the Void =xbps-src= template is also manual even though the lightweight =.xbps= package is built/tested by CI.
 
 The DEB and Gentoo layouts install PSF console fonts under =/usr/share/consolefonts/dec-fonts=. The RPM package installs them under =/usr/lib/kbd/consolefonts/dec-fonts=. The Arch and Void layouts install them under =/usr/share/kbd/consolefonts/dec-fonts=. The FHS-style packages install BDF/OTB fonts under =/usr/share/fonts/dec-fonts=, data under =/usr/share/dec-fonts=, docs under =/usr/share/doc/dec-fonts=, and enable a package-scoped fontconfig config.
 
@@ -175,7 +176,7 @@ make test-nix-flake-container CONTAINER_RUNTIME=podman
 nix develop
 #+END_SRC
 
-=make test-nix-flake-container= runs =nix flake check= inside a clean =docker.io/nixos/nix= container; set ~NIX_CONTAINER_IMAGE=...~ to try another image. Inside =nix develop=, =DEC_FONTS_ASDF_LOAD_MODE= is set to =asdf= so =scripts/generate-fonts.sh= loads =dec-fonts= through ASDF directly. Outside Nix, the default remains Quicklisp; set =DEC_FONTS_ASDF_LOAD_MODE=asdf= only when dependencies such as =png= and =array-operations= are already visible to ASDF.
+=make test-nix-flake-container= runs =nix flake check= inside a clean =docker.io/nixos/nix= container; set ~NIX_CONTAINER_IMAGE=...~ to try another image. GitHub Actions runs the same Make target with Docker as the Nix CI check. Inside =nix develop=, =DEC_FONTS_ASDF_LOAD_MODE= is set to =asdf= so =scripts/generate-fonts.sh= loads =dec-fonts= through ASDF directly. Outside Nix, the default remains Quicklisp; set =DEC_FONTS_ASDF_LOAD_MODE=asdf= only when dependencies such as =png= and =array-operations= are already visible to ASDF.
 
 ** GNU Guix local package
 A local Guix package module is available under =packaging/guix=. It packages the generated =dist= font artifacts from this checkout; it does not regenerate fonts in the Guix build.
