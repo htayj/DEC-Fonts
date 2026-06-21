@@ -115,6 +115,26 @@ xset fp rehash
 You may need to restart running fontconfig/Xft applications before the font becomes an option. =xset +fp= is per X session, so add it to your X startup files for permanent xterm/core-font use.
 
 * Building
+** Makefile and local CI workflow
+The repository includes Makefile targets for the release-packaging path used by CI:
+
+#+BEGIN_SRC bash
+make bdf
+make fonts
+make check
+make package VERSION=local-test
+make ci VERSION=local-ci
+#+END_SRC
+
+Pass generator options through =GENERATOR_OPTIONS= when you want opt-in outputs:
+
+#+BEGIN_SRC bash
+make fonts GENERATOR_OPTIONS="--include-scaled-sizes --include-132-column"
+#+END_SRC
+
+=make package= and =make ci= write archives to =dist/release/DEC-Fonts-$VERSION.tar.gz= and a matching =.sha256= file. To run the GitHub Actions path locally, use =act= if it is installed; otherwise =make ci VERSION=local-ci= exercises the same build, check, and packaging command path.
+
+** Manual generator invocation
 Run the Common Lisp generator from the repository root with SBCL and Quicklisp:
 
 #+BEGIN_SRC bash

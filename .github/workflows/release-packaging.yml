@@ -1,0 +1,101 @@
+name: Release packaging
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            bdf2psf \
+            build-essential \
+            ca-certificates \
+            curl \
+            git \
+            python3 \
+            sbcl \
+            xfonts-utils
+
+      - name: Install mkbold/mkitalic tools if unavailable
+        run: |
+          set -euo pipefail
+          if command -v mkbold >/dev/null 2>&1 && \
+             command -v mkitalic >/dev/null 2>&1 && \
+             command -v mkbolditalic >/dev/null 2>&1; then
+            echo "mkbold/mkitalic/mkbolditalic already available"
+            exit 0
+          fi
+
+          tmpdir=$(mktemp -d)
+          trap 'rm -rf "$tmpdir"' EXIT
+          git clone --depth 1 --branch 0.11 https://gitlab.com/unshumikan/mkbold-mkitalic.git "$tmpdir/mkbold-mkitalic"
+          cd "$tmpdir/mkbold-mkitalic"
+          expected_commit=a3105755c56d68d37cc3e9738389dfa18b4e5214
+          actual_commit=$(git rev-parse HEAD)
+          if [[ "$actual_commit" != "$expected_commit" ]]; then
+            echo "mkbold-mkitalic 0.11 resolved to $actual_commit, expected $expected_commit" >&2
+            exit 1
+          fi
+          make
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 mkbold mkitalic mkbolditalic "$HOME/.local/bin/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Quicklisp
+        run: |
+          set -euo pipefail
+          if [[ -f "$HOME/quicklisp/setup.lisp" ]]; then
+            echo "Quicklisp already installed"
+            exit 0
+          fi
+          curl -fsSLO https://beta.quicklisp.org/quicklisp.lisp
+          sbcl --non-interactive \
+            --load quicklisp.lisp \
+            --eval '(quicklisp-quickstart:install :path (merge-pathnames "quicklisp/" (user-homedir-pathname)))'
+
+      - name: Compute package version
+        id: version
+        run: |
+          set -euo pipefail
+          raw_version=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD || echo ci)
+          version=$(printf '%s' "$raw_version" | LC_ALL=C tr -c 'A-Za-z0-9._+-' '-')
+          if [[ -z "$version" ]]; then
+            version=ci
+          fi
+          echo "raw version: $raw_version"
+          echo "package version: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build, check, and package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: make ci
+
+      - name: Verify release package
+        run: |
+          set -euo pipefail
+          (cd dist/release && sha256sum -c *.tar.gz.sha256)
+          tar -tzf dist/release/*.tar.gz | sed -n '1,40p'
+
+      - name: Upload release package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dec-fonts-release-package
+          path: dist/release/*
+          if-no-files-found: error
