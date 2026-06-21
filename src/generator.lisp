@@ -292,6 +292,15 @@
     (4 8 50)
     (5 10 50)))
 
+(defparameter +default-single-width-output-sizes+
+  '((1 2 50)
+    (2 4 50)))
+
+(defparameter +default-double-width-output-sizes+
+  '((1 2 50)))
+
+(defparameter +generated-bdf-prefix+ "DIGITAL-VT220-Normal-")
+
 (defparameter +default-source-image+ "./rom-separated_extended.png")
 (defparameter +default-dist-root+ "./dist")
 (defparameter +y-resolution+ 75)
@@ -750,6 +759,28 @@ We choose the nearest integer scalable width for the generated cell advance."
                             :name file-name
                             :type "bdf")))
 
+(defun fonts-bdf-directory (dist-root)
+  (dist-path dist-root
+             (make-pathname :directory '(:relative "fonts" "bdf"))))
+
+(defun string-prefix-p (prefix string)
+  (let ((prefix-length (length prefix)))
+    (and (<= prefix-length (length string))
+         (string= prefix string :end2 prefix-length))))
+
+(defun generated-bdf-pathname-p (pathname)
+  (string-prefix-p +generated-bdf-prefix+
+                   (file-namestring pathname)))
+
+(defun clean-generated-bdfs (&key (dist-root +default-dist-root+))
+  "Remove generated DIGITAL-VT220-Normal-*.bdf files under DIST-ROOT."
+  (let* ((bdf-directory (fonts-bdf-directory dist-root))
+         (wild-bdfs (merge-pathnames (make-pathname :name :wild :type "bdf")
+                                     bdf-directory)))
+    (dolist (pathname (directory wild-bdfs))
+      (when (generated-bdf-pathname-p pathname)
+        (delete-file pathname)))))
+
 (defun write-font (zipped-glyphs width-type style-name xres relative-width
                    &key (dist-root +default-dist-root+))
   (let* ((width (aops:ncol (cadar zipped-glyphs)))
@@ -826,35 +857,145 @@ We choose the nearest integer scalable width for the generated cell advance."
                     #'append-last-column)
            glyphs)))
 
+(defun output-sizes-for-single-width (include-scaled-sizes)
+  (if include-scaled-sizes
+      +output-sizes+
+      +default-single-width-output-sizes+))
+
+(defun output-sizes-for-double-width (include-scaled-sizes)
+  (if include-scaled-sizes
+      +output-sizes+
+      +default-double-width-output-sizes+))
+
 (defun generate (&key (source-image +default-source-image+)
-                   (dist-root +default-dist-root+))
+                   (dist-root +default-dist-root+)
+                   (include-scaled-sizes nil)
+                   (include-132-column nil)
+                   (clean t))
   "Generate DEC font BDF files and dec.set using the original byte format."
   (validate-no-duplicate-hexes)
   (let* ((image (image-to-ternary-array source-image))
-         (glyphs (character-cells image)))
-    (multiple-value-bind (136-column-glyphs
-                          136-column-double-glyphs
+         (glyphs (character-cells image))
+         (single-width-sizes (output-sizes-for-single-width include-scaled-sizes))
+         (double-width-sizes (output-sizes-for-double-width include-scaled-sizes)))
+    (when clean
+      (clean-generated-bdfs :dist-root dist-root))
+    (multiple-value-bind (132-column-glyphs
+                          132-column-double-glyphs
                           80-column-glyphs
                           80-column-double-glyphs)
         (variant-glyphs glyphs)
-      (write-glyphs-in-sizes 136-column-glyphs +output-sizes+
-                             "Normal" 75 "136col"
-                             :dist-root dist-root)
-      (write-glyphs-in-sizes 136-column-double-glyphs +output-sizes+
-                             "Normal" 150 "136col"
-                             :dist-root dist-root)
-      (write-glyphs-in-sizes 80-column-glyphs +output-sizes+
+      (when include-132-column
+        (write-glyphs-in-sizes 132-column-glyphs single-width-sizes
+                               "Normal" 75 "132col"
+                               :dist-root dist-root)
+        (write-glyphs-in-sizes 132-column-double-glyphs double-width-sizes
+                               "Normal" 150 "132col"
+                               :dist-root dist-root))
+      (write-glyphs-in-sizes 80-column-glyphs single-width-sizes
                              "Normal" 75 "80col"
                              :dist-root dist-root)
-      (write-glyphs-in-sizes 80-column-double-glyphs +output-sizes+
+      (write-glyphs-in-sizes 80-column-double-glyphs double-width-sizes
                              "Normal" 150 "80col"
                              :dist-root dist-root)
       (write-dec-set :dist-root dist-root)))
   (values))
 
 (defun main (&key (source-image +default-source-image+)
-               (dist-root +default-dist-root+))
+               (dist-root +default-dist-root+)
+               (include-scaled-sizes nil)
+               (include-132-column nil)
+               (clean t))
   "Generate fonts with default repository-relative paths and print completion."
-  (generate :source-image source-image :dist-root dist-root)
+  (generate :source-image source-image
+            :dist-root dist-root
+            :include-scaled-sizes include-scaled-sizes
+            :include-132-column include-132-column
+            :clean clean)
   (print "done")
+  (values))
+
+(defun option-with-value-p (option argument)
+  (string-prefix-p (concatenate 'string option "=") argument))
+
+(defun option-value-after-equals (option argument)
+  (subseq argument (1+ (length option))))
+
+(defun require-cli-option-value (option arguments)
+  (unless arguments
+    (error "~A requires a value" option))
+  (values (car arguments) (cdr arguments)))
+
+(defun command-line-arguments ()
+  (let ((arguments (uiop:command-line-arguments)))
+    (if (and arguments (string= (car arguments) "--"))
+        (cdr arguments)
+        arguments)))
+
+(defun write-cli-usage (&optional (stream *standard-output*))
+  (format stream "usage: dec-fonts.generator:cli-main [GENERATOR_OPTION ...]~%")
+  (format stream "~%Options:~%")
+  (format stream "  --include-scaled-sizes   Generate all scaled 80-column sizes.~%")
+  (format stream "  --include-132-column     Generate the analogous 132-column sizes.~%")
+  (format stream "  --no-clean               Keep existing generated BDF files before writing.~%")
+  (format stream "  --source-image PATH      Read glyphs from PATH.~%")
+  (format stream "  --dist-root PATH         Write dist artifacts under PATH.~%")
+  (format stream "  --help                   Show this help text.~%"))
+
+(defun parse-cli-arguments (arguments)
+  (let ((source-image +default-source-image+)
+        (dist-root +default-dist-root+)
+        (include-scaled-sizes nil)
+        (include-132-column nil)
+        (clean t)
+        (help nil))
+    (loop while arguments
+          for argument = (car arguments)
+          do (setf arguments (cdr arguments))
+             (cond
+               ((string= argument "--help")
+                (setf help t))
+               ((string= argument "--include-scaled-sizes")
+                (setf include-scaled-sizes t))
+               ((string= argument "--include-132-column")
+                (setf include-132-column t))
+               ((string= argument "--no-clean")
+                (setf clean nil))
+               ((string= argument "--source-image")
+                (multiple-value-bind (value rest-arguments)
+                    (require-cli-option-value argument arguments)
+                  (setf source-image value
+                        arguments rest-arguments)))
+               ((option-with-value-p "--source-image" argument)
+                (setf source-image
+                      (option-value-after-equals "--source-image" argument)))
+               ((string= argument "--dist-root")
+                (multiple-value-bind (value rest-arguments)
+                    (require-cli-option-value argument arguments)
+                  (setf dist-root value
+                        arguments rest-arguments)))
+               ((option-with-value-p "--dist-root" argument)
+                (setf dist-root
+                      (option-value-after-equals "--dist-root" argument)))
+               (t
+                (error "unknown option: ~A" argument))))
+    (values source-image dist-root include-scaled-sizes include-132-column clean help)))
+
+(defun cli-main (&optional (arguments (command-line-arguments)))
+  "Parse command-line arguments and run the generator."
+  (multiple-value-bind (source-image dist-root include-scaled-sizes
+                        include-132-column clean help)
+      (handler-case
+          (parse-cli-arguments arguments)
+        (error (condition)
+          (format *error-output* "~A~%~%" condition)
+          (write-cli-usage *error-output*)
+          (uiop:quit 2)))
+    (if help
+        (write-cli-usage)
+        (main :source-image source-image
+              :dist-root dist-root
+              :include-scaled-sizes include-scaled-sizes
+              :include-132-column include-132-column
+              :clean clean)))
   (values))

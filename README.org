@@ -4,10 +4,10 @@ Fonts with 150 x resolution are double width and have been created by doubling t
 
 Additionally, I have added a few new characters based on the original characters, mostly related to the General Punctuation unicode block (U+2000 - U+206F) since they are encountered regularly when using a terminal based web browser. Bold/italic/bolditalic fonts (generated using mkbolditalic) are also included although they are anachronistic to 
 
-It includes both 80col and 136col fonts.
+The default base BDF set is the 80-column xterm master set: normal 10x20 at 75 x-resolution, double-wide 20x20 at 150 x-resolution, and double-size 20x40 at 75 x-resolution. Additional scaled sizes and 132-column variants can be generated explicitly.
 
 * Installation
-Fonts are provided at a variety of sizes in the =dist/fonts= folder.
+The default fonts are provided in the =dist/fonts= folder. They cover the 80-column xterm master set; scaled sizes and 132-column variants are opt-in generator outputs.
 
 - Use =bdf= for X core-font clients such as =xterm=. This is the recommended format when you want DEC/xterm double-width and double-height line controls to use matching bitmap masters.
 - Use =otb= for fontconfig/Xft applications.
@@ -89,11 +89,19 @@ xterm -fn '-digital-vt220-medium-r-normal-80col-20-200-75-75-c-100-iso10646-1' \
 The double-width section should use the 20x20/150-xres font. The double-height section should use the 20x40 font for the top and bottom halves. The most noticeable difference is that double-width =p= and =q= should have a small separation between the top of the stem and bowl; in the 20px font the top of the character is not a continuous line.
 
 ** Full BDF install
-If you want every generated size/style, copy all BDF files instead of the minimal set:
+If you have opted into extra sizes or 132-column variants during a local build, copy all generated BDF files instead of the minimal set:
 
 #+BEGIN_SRC bash
 git clone https://github.com/htayj/DEC-Fonts.git
 cd DEC-Fonts
+
+# Optional: regenerate every base size/width before conversion.
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:main :include-scaled-sizes t :include-132-column t)' \
+     --quit
+./convert.bash
 
 install_dir="$HOME/.local/share/fonts/digital-vt220-bdf"
 mkdir -p "$install_dir"
@@ -117,16 +125,61 @@ sbcl --load "$HOME/quicklisp/setup.lisp" \
      --quit
 #+END_SRC
 
-This regenerates =dist/dec.set= and the base BDF files in =dist/fonts/bdf=.
-The generator is loadable as the ASDF system =dec-fonts=; loading the system does not write files. Call =dec-fonts.generator:generate= or =dec-fonts.generator:main= to generate fonts explicitly.
+This regenerates =dist/dec.set= and the default three base BDF files in =dist/fonts/bdf=:
+
+- =DIGITAL-VT220-Normal-80col-10x20-75xres.bdf=
+- =DIGITAL-VT220-Normal-80col-20x20-150xres.bdf=
+- =DIGITAL-VT220-Normal-80col-20x40-75xres.bdf=
+
+The generator is loadable as the ASDF system =dec-fonts=; loading the system does not write files. Call =dec-fonts.generator:generate= or =dec-fonts.generator:main= to generate fonts explicitly. By default stale generated =DIGITAL-VT220-Normal-*.bdf= files are removed from =dist/fonts/bdf= before writing the selected base BDFs.
+
+Opt into the additional scaled 80-column sizes:
+
+#+BEGIN_SRC bash
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:main :include-scaled-sizes t)' \
+     --quit
+#+END_SRC
+
+Opt into the analogous 132-column masters:
+
+#+BEGIN_SRC bash
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:main :include-132-column t)' \
+     --quit
+#+END_SRC
+
+Generate the historical full 20-base-BDF matrix:
+
+#+BEGIN_SRC bash
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:main :include-scaled-sizes t :include-132-column t)' \
+     --quit
+#+END_SRC
+
+The same options are available through the exported CLI entry point:
+
+#+BEGIN_SRC bash
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:cli-main)' \
+     --quit -- --include-scaled-sizes --include-132-column
+#+END_SRC
 
 To verify a refactor against a previously captured baseline, use:
 
 #+BEGIN_SRC bash
-scripts/check-generated.sh /path/to/baseline-directory
+scripts/check-generated.sh /path/to/baseline-directory [GENERATOR_OPTION ...]
 #+END_SRC
 
-The baseline directory must contain =cl-generated.sha256=, for example from =sha256sum= over =dist/dec.set= and the base non-bold/non-italic BDF files before making changes.
+The baseline directory must contain =cl-generated.sha256=, for example from =sha256sum= over =dist/dec.set= and the base non-bold/non-italic BDF files before making changes. Any extra arguments are passed to =dec-fonts.generator:cli-main=, so you can verify opt-in outputs with options such as =--include-scaled-sizes= or =--include-132-column=.
 
 To generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbolditalic]] required for bold/italic):
 

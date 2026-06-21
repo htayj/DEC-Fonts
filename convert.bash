@@ -25,7 +25,7 @@ done
 }
 
 # Make repeated runs safe: generated style variants must always be derived from
-# the 20 base BDFs, never from already-bold or already-italic BDFs.
+# the selected base BDFs, never from already-bold or already-italic BDFs.
 find "$bdf_dir" -maxdepth 1 -type f \( \
     -name '*-Bold-*' -o \
     -name '*-Italic-*' -o \
