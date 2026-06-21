@@ -294,6 +294,8 @@
 
 (defparameter +default-source-image+ "./rom-separated_extended.png")
 (defparameter +default-dist-root+ "./dist")
+(defparameter +y-resolution+ 75)
+(defparameter +default-character-code+ 9670)
 
 (defun directory-pathname (pathname-designator)
   "Return PATHNAME-DESIGNATOR as a directory pathname."
@@ -599,9 +601,9 @@ width is already byte-aligned."
          (cons (list (hex-string hex-entry) glyph)
                pairs)))))
 
-(defun size-line (zipped-glyphs)
+(defun size-line (zipped-glyphs x-resolution y-resolution)
   (let ((height (aops:nrow (cadar zipped-glyphs))))
-    (format nil "SIZE ~d 75 75" height)))
+    (format nil "SIZE ~d ~d ~d" height x-resolution y-resolution)))
 
 (defun bounding-box-line (zipped-glyphs)
   (let* ((width (aops:ncol (cadar zipped-glyphs)))
@@ -670,7 +672,7 @@ width is already byte-aligned."
            (format nil "FONT ~A"
                    (generate-font-name "DIGITAL" "VT220" width height
                                        width-type style-name xres))
-           (size-line zipped-glyphs)
+           (size-line zipped-glyphs xres +y-resolution+)
            (bounding-box-line zipped-glyphs)
            "STARTPROPERTIES 21"
            (string-property-line "FOUNDRY" "DIGITAL")
@@ -682,15 +684,15 @@ width is already byte-aligned."
            (string-property-line "ADD_STYLE_NAME" style-name)
            (property-line "PIXEL_SIZE" height)
            (property-line "POINT_SIZE" (* 10 height))
-           (property-line "RESOLUTION_X" 75)
-           (property-line "RESOLUTION_Y" 75)
+           (property-line "RESOLUTION_X" xres)
+           (property-line "RESOLUTION_Y" +y-resolution+)
            (string-property-line "SPACING" "c")
            (string-property-line "CHARSET_REGISTRY" "ISO10646")
            (string-property-line "CHARSET_ENCODING" "1")
            (property-line "CAP_HEIGHT" (- height (/ height 5) (/ height 10)))
            (property-line "X_HEIGHT" (/ height 2))
-           (property-line "WEIGHT" 10)
            (property-line "QUAD_WIDTH" width)
+           (property-line "DEFAULT_CHAR" +default-character-code+)
            (ascent-line zipped-glyphs)
            (descent-line zipped-glyphs)
            (format nil "AVERAGE_WIDTH ~A" (* 10 width))
@@ -706,15 +708,27 @@ width is already byte-aligned."
          (descent (- (/ height 5))))
     (format nil "BBX ~d ~d ~d ~d" width height 0 descent)))
 
-(defun build-character (zipped-glyph)
+(defun swidth-value (device-width point-size x-resolution)
+  "Return BDF SWIDTH for DEVICE-WIDTH at POINT-SIZE and X-RESOLUTION.
+
+BDF stores scalable width in 1/1000ths of the point size.  The ideal
+conversion back to device pixels is:
+  swidth * point-size / 1000 * x-resolution / 72.
+We choose the nearest integer scalable width for the generated cell advance."
+  (floor (+ 1/2 (/ (* device-width 72000)
+                   (* point-size x-resolution)))))
+
+(defun build-character (zipped-glyph point-size x-resolution)
   (let* ((unicode-hex (hex-string zipped-glyph))
          (unicode-decimal (decimal-string-for-entry zipped-glyph))
          (glyph (cadr zipped-glyph))
+         (device-width (aops:ncol glyph))
          (bitmap-lines (coerce (glyph-to-bdf-bitmap glyph) 'list)))
     (list (character-start-line unicode-hex)
           (format nil "ENCODING ~A" unicode-decimal)
-          "SWIDTH 1000 0"
-          (format nil "DWIDTH ~d 0" (aops:ncol glyph))
+          (format nil "SWIDTH ~d 0"
+                  (swidth-value device-width point-size x-resolution))
+          (format nil "DWIDTH ~d 0" device-width)
           (glyph-bbx-line glyph)
           "BITMAP"
           (newline-joined-string bitmap-lines)
@@ -723,10 +737,11 @@ width is already byte-aligned."
 (defun nil-hex-entry-p (zipped-glyph)
   (string-equal "NIL" (car zipped-glyph)))
 
-(defun build-all-characters (zipped-glyphs)
+(defun build-all-characters (zipped-glyphs point-size x-resolution)
   (newline-joined-string
    (mapcar #'newline-joined-string
-           (mapcar #'build-character
+           (mapcar (lambda (zipped-glyph)
+                     (build-character zipped-glyph point-size x-resolution))
                    (remove-if #'nil-hex-entry-p zipped-glyphs)))))
 
 (defun font-pathname (dist-root file-name)
@@ -753,7 +768,7 @@ width is already byte-aligned."
               (newline-joined-string
                (list (build-header zipped-glyphs width-type style-name xres
                                    relative-width)
-                     (build-all-characters zipped-glyphs)
+                     (build-all-characters zipped-glyphs height xres)
                      "ENDFONT"
                      ""))))))
 
