@@ -124,7 +124,20 @@ make fonts
 make check
 make package VERSION=local-test
 make ci VERSION=local-ci
+make distro-packages VERSION=local-ci
+make package-arch VERSION=local-ci
+make nix-check
 #+END_SRC
+
+Distribution packages are written under =dist/packages=:
+
+- =make package-deb VERSION=local-ci= builds =dist/packages/deb/dec-fonts_<version>-1_all.deb=.
+- =make package-rpm VERSION=local-ci= builds =dist/packages/rpm/dec-fonts-<version>-1.noarch.rpm=.
+- =make package-arch VERSION=local-ci= builds =dist/packages/arch/dec-fonts-git-<version>-1-any.pkg.tar.*= from the current checkout.
+- =make test-deb-package=, =make test-rpm-package=, and =make test-arch-package= install the packages in Debian/Fedora/Arch containers and verify the font files plus fontconfig visibility. Set ~CONTAINER_RUNTIME=podman~ if you prefer Podman.
+- AUR and Nix packaging are local/manual only for now; the GitHub Actions workflow builds/tests the release tarball plus DEB/RPM jobs, not AUR uploads or Nix builds.
+
+The DEB package installs PSF console fonts under =/usr/share/consolefonts/dec-fonts=. The RPM package installs them under =/usr/lib/kbd/consolefonts/dec-fonts=. The Arch package installs them under =/usr/share/kbd/consolefonts/dec-fonts=. All three packages install BDF/OTB fonts under =/usr/share/fonts/dec-fonts=, data under =/usr/share/dec-fonts=, docs under =/usr/share/doc/dec-fonts=, and enable a package-scoped fontconfig config.
 
 Pass generator options through =GENERATOR_OPTIONS= when you want opt-in outputs:
 
@@ -133,6 +146,35 @@ make fonts GENERATOR_OPTIONS="--include-scaled-sizes --include-132-column"
 #+END_SRC
 
 =make package= and =make ci= write archives to =dist/release/DEC-Fonts-$VERSION.tar.gz= and a matching =.sha256= file. To run the GitHub Actions path locally, use =act= if it is installed; otherwise =make ci VERSION=local-ci= exercises the same build, check, and packaging command path.
+
+** Arch AUR packaging
+The manual AUR files live under =packaging/aur/dec-fonts-git=. This is a VCS package (=dec-fonts-git=) that packages the generated =dist= outputs from the Git checkout; a non-VCS =dec-fonts= package should wait for a release tarball and checksum.
+
+#+BEGIN_SRC bash
+make aur-srcinfo
+cd packaging/aur/dec-fonts-git
+makepkg --printsrcinfo
+#+END_SRC
+
+For a local package from the current checkout, use:
+
+#+BEGIN_SRC bash
+make package-arch VERSION=local-ci
+make test-arch-package CONTAINER_RUNTIME=podman
+#+END_SRC
+
+** Nix flake
+A best-effort flake is provided for local Nix builds, checks, and development shells. It uses ASDF-provided Common Lisp dependencies rather than Quicklisp and overrides =BDF2PSF_EQUIVALENTS= for the Nix =bdf2psf= package.
+
+#+BEGIN_SRC bash
+nix flake metadata
+nix build .#dec-fonts
+nix flake check
+make test-nix-flake-container CONTAINER_RUNTIME=podman
+nix develop
+#+END_SRC
+
+=make test-nix-flake-container= runs =nix flake check= inside a clean =docker.io/nixos/nix= container; set ~NIX_CONTAINER_IMAGE=...~ to try another image. Inside =nix develop=, =DEC_FONTS_ASDF_LOAD_MODE= is set to =asdf= so =scripts/generate-fonts.sh= loads =dec-fonts= through ASDF directly. Outside Nix, the default remains Quicklisp; set =DEC_FONTS_ASDF_LOAD_MODE=asdf= only when dependencies such as =png= and =array-operations= are already visible to ASDF.
 
 ** Manual generator invocation
 Run the Common Lisp generator from the repository root with SBCL and Quicklisp:

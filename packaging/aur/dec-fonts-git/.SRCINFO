@@ -1,0 +1,18 @@
+pkgbase = dec-fonts-git
+	pkgdesc = DEC VT220 bitmap fonts
+	pkgver = r26.ge67496b
+	pkgrel = 1
+	url = https://github.com/htayj/DEC-Fonts
+	arch = any
+	license = MIT
+	makedepends = git
+	depends = fontconfig
+	optdepends = kbd: Linux console setfont support
+	provides = dec-fonts=r26.ge67496b
+	conflicts = dec-fonts
+	options = !strip
+	backup = etc/fonts/conf.d/75-dec-fonts.conf
+	source = DEC-Fonts::git+https://github.com/htayj/DEC-Fonts.git
+	sha256sums = SKIP
+
+pkgname = dec-fonts-git

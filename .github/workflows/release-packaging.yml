@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Check out repository
@@ -74,10 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           raw_version=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD || echo ci)
-          version=$(printf '%s' "$raw_version" | LC_ALL=C tr -c 'A-Za-z0-9._+-' '-')
-          if [[ -z "$version" ]]; then
-            version=ci
-          fi
+          version=$(scripts/package-version.sh "$raw_version")
           echo "raw version: $raw_version"
           echo "package version: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -93,6 +92,32 @@ jobs:
           (cd dist/release && sha256sum -c *.tar.gz.sha256)
           tar -tzf dist/release/*.tar.gz | sed -n '1,40p'
 
+      - name: Upload generated fonts artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dec-fonts-generated-fonts
+          path: |
+            README.org
+            dist/dec.set
+            dist/fonts/bdf
+            dist/fonts/otb
+            dist/fonts/psf
+          if-no-files-found: error
+
+      - name: Upload generated fonts artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: dec-fonts-generated-fonts
+          path: |
+            README.org
+            dist/dec.set
+            dist/fonts/bdf
+            dist/fonts/otb
+            dist/fonts/psf
+          if-no-files-found: error
+
       - name: Upload release package artifact
         if: ${{ env.ACT != 'true' }}
         uses: actions/upload-artifact@v6
@@ -100,3 +125,176 @@ jobs:
           name: dec-fonts-release-package
           path: dist/release/*
           if-no-files-found: error
+
+  package-deb:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download generated fonts artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dec-fonts-generated-fonts
+          path: .
+
+      - name: Download generated fonts artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dec-fonts-generated-fonts
+          path: .
+
+      - name: Install DEB packaging dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            dpkg-dev
+
+      - name: Build DEB package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: scripts/package-deb.sh --version "$VERSION"
+
+      - name: Verify DEB checksum and listing
+        run: |
+          set -euo pipefail
+          (cd dist/packages/deb && sha256sum -c *.sha256)
+          dpkg-deb -c dist/packages/deb/*.deb | sed -n '1,80p'
+
+      - name: Upload DEB package artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dec-fonts-deb-package
+          path: dist/packages/deb/*
+          if-no-files-found: error
+
+      - name: Upload DEB package artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: dec-fonts-deb-package
+          path: dist/packages/deb/*
+          if-no-files-found: error
+
+  package-rpm:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download generated fonts artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dec-fonts-generated-fonts
+          path: .
+
+      - name: Download generated fonts artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dec-fonts-generated-fonts
+          path: .
+
+      - name: Install RPM packaging dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            file \
+            rpm
+
+      - name: Build RPM package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: scripts/package-rpm.sh --version "$VERSION"
+
+      - name: Verify RPM checksum and listing
+        run: |
+          set -euo pipefail
+          (cd dist/packages/rpm && sha256sum -c *.sha256)
+          rpm -qlp dist/packages/rpm/*.rpm | sed -n '1,80p'
+
+      - name: Upload RPM package artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dec-fonts-rpm-package
+          path: dist/packages/rpm/*
+          if-no-files-found: error
+
+      - name: Upload RPM package artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: dec-fonts-rpm-package
+          path: dist/packages/rpm/*
+          if-no-files-found: error
+
+  test-deb:
+    runs-on: ubuntu-latest
+    needs: package-deb
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download DEB package artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dec-fonts-deb-package
+          path: dist/packages/deb
+
+      - name: Download DEB package artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dec-fonts-deb-package
+          path: dist/packages/deb
+
+      - name: Install and verify DEB package in container
+        run: |
+          set -euo pipefail
+          scripts/test-linux-package-container.sh \
+            --runtime docker \
+            --format deb \
+            --package dist/packages/deb/*.deb
+
+  test-rpm:
+    runs-on: ubuntu-latest
+    needs: package-rpm
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Download RPM package artifact (act)
+        if: ${{ env.ACT == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dec-fonts-rpm-package
+          path: dist/packages/rpm
+
+      - name: Download RPM package artifact
+        if: ${{ env.ACT != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dec-fonts-rpm-package
+          path: dist/packages/rpm
+
+      - name: Install and verify RPM package in container
+        run: |
+          set -euo pipefail
+          scripts/test-linux-package-container.sh \
+            --runtime docker \
+            --format rpm \
+            --package dist/packages/rpm/*.rpm

@@ -1,4 +1,7 @@
 __pycache__/
 *.py[cod]
 dist/release/
+dist/packages/
+result
+result-*
 .act-artifacts/

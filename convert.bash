@@ -8,7 +8,7 @@ bdf_dir=./dist/fonts/bdf
 otb_dir=./dist/fonts/otb
 psf_dir=./dist/fonts/psf
 dec_set=./dist/dec.set
-equivalents=/usr/share/bdf2psf/standard.equivalents
+equivalents=${BDF2PSF_EQUIVALENTS:-/usr/share/bdf2psf/standard.equivalents}
 
 mkdir -p "$bdf_dir" "$otb_dir" "$psf_dir"
 

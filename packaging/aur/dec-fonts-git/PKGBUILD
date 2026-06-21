@@ -1,0 +1,29 @@
+# Maintainer: DEC-Fonts maintainers <noreply@example.invalid>
+
+pkgname=dec-fonts-git
+_pkgname=DEC-Fonts
+pkgver=r26.ge67496b
+pkgrel=1
+pkgdesc='DEC VT220 bitmap fonts'
+arch=('any')
+url='https://github.com/htayj/DEC-Fonts'
+license=('MIT')
+depends=('fontconfig')
+makedepends=('git')
+optdepends=('kbd: Linux console setfont support')
+provides=("dec-fonts=$pkgver")
+conflicts=('dec-fonts')
+backup=('etc/fonts/conf.d/75-dec-fonts.conf')
+options=('!strip')
+source=("$_pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$_pkgname"
+    printf 'r%s.g%s\n' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    cd "$_pkgname"
+    ./scripts/stage-linux-package.sh --format arch --destdir "$pkgdir"
+}

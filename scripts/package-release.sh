@@ -60,8 +60,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ! "$version" =~ ^[A-Za-z0-9._+-]+$ ]]; then
-    echo "VERSION must contain only ASCII letters, digits, '.', '_', '+', or '-': $version" >&2
+if [[ ! "$version" =~ ^[A-Za-z0-9._+~-]+$ ]]; then
+    echo "VERSION must contain only ASCII letters, digits, '.', '_', '+', '~', or '-': $version" >&2
     exit 2
 fi
 
