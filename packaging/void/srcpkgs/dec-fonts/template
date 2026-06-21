@@ -1,0 +1,25 @@
+# Template file for 'dec-fonts'
+pkgname=dec-fonts
+version=0.0.0
+revision=1
+archs="noarch"
+depends="fontconfig xbps-triggers"
+short_desc="DEC VT220 bitmap fonts"
+maintainer="DEC-Fonts maintainers <noreply@example.invalid>"
+license="MIT"
+homepage="https://github.com/htayj/DEC-Fonts"
+# For a real Void package, set distfiles/checksum to a tagged release tarball,
+# for example:
+# distfiles="https://github.com/htayj/DEC-Fonts/releases/download/v${version}/DEC-Fonts-${version}.tar.gz"
+# checksum=<sha256>
+font_dirs="/usr/share/fonts/dec-fonts /usr/share/fonts/dec-fonts/bdf /usr/share/fonts/dec-fonts/otb"
+
+# Local/manual xbps-src testing can provide DEC_FONTS_SOURCE_DIR=/path/to/checkout.
+do_install() {
+	local src=${DEC_FONTS_SOURCE_DIR:-${wrksrc}}
+	if [ ! -f "${src}/scripts/stage-linux-package.sh" ]; then
+		msg_error "set DEC_FONTS_SOURCE_DIR to a DEC-Fonts checkout or use a release tarball\n"
+	fi
+	cd "${src}"
+	./scripts/stage-linux-package.sh --format void --destdir "${DESTDIR}"
+}

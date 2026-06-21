@@ -134,10 +134,11 @@ Distribution packages are written under =dist/packages=:
 - =make package-deb VERSION=local-ci= builds =dist/packages/deb/dec-fonts_<version>-1_all.deb=.
 - =make package-rpm VERSION=local-ci= builds =dist/packages/rpm/dec-fonts-<version>-1.noarch.rpm=.
 - =make package-arch VERSION=local-ci= builds =dist/packages/arch/dec-fonts-git-<version>-1-any.pkg.tar.*= from the current checkout.
-- =make test-deb-package=, =make test-rpm-package=, and =make test-arch-package= install the packages in Debian/Fedora/Arch containers and verify the font files plus fontconfig visibility. Set ~CONTAINER_RUNTIME=podman~ if you prefer Podman.
-- AUR and Nix packaging are local/manual only for now; the GitHub Actions workflow builds/tests the release tarball plus DEB/RPM jobs, not AUR uploads or Nix builds.
+- =make package-void VERSION=local-ci= builds =dist/packages/void/dec-fonts-<version>_1.noarch.xbps= and a matching =.sha256= with =xbps-create=, using a Void container fallback if needed.
+- =make test-deb-package=, =make test-rpm-package=, =make test-arch-package=, and =make test-void-package= install the packages in Debian/Fedora/Arch/Void containers and verify the font files plus fontconfig visibility. Set ~CONTAINER_RUNTIME=podman~ if you prefer Podman.
+- AUR, Nix, Guix, Gentoo, and Void recipes are local/manual only for now; the GitHub Actions workflow builds/tests the release tarball plus DEB/RPM jobs, not those local/manual package ecosystems.
 
-The DEB package installs PSF console fonts under =/usr/share/consolefonts/dec-fonts=. The RPM package installs them under =/usr/lib/kbd/consolefonts/dec-fonts=. The Arch package installs them under =/usr/share/kbd/consolefonts/dec-fonts=. All three packages install BDF/OTB fonts under =/usr/share/fonts/dec-fonts=, data under =/usr/share/dec-fonts=, docs under =/usr/share/doc/dec-fonts=, and enable a package-scoped fontconfig config.
+The DEB and Gentoo layouts install PSF console fonts under =/usr/share/consolefonts/dec-fonts=. The RPM package installs them under =/usr/lib/kbd/consolefonts/dec-fonts=. The Arch and Void layouts install them under =/usr/share/kbd/consolefonts/dec-fonts=. The FHS-style packages install BDF/OTB fonts under =/usr/share/fonts/dec-fonts=, data under =/usr/share/dec-fonts=, docs under =/usr/share/doc/dec-fonts=, and enable a package-scoped fontconfig config.
 
 Pass generator options through =GENERATOR_OPTIONS= when you want opt-in outputs:
 
@@ -175,6 +176,63 @@ nix develop
 #+END_SRC
 
 =make test-nix-flake-container= runs =nix flake check= inside a clean =docker.io/nixos/nix= container; set ~NIX_CONTAINER_IMAGE=...~ to try another image. Inside =nix develop=, =DEC_FONTS_ASDF_LOAD_MODE= is set to =asdf= so =scripts/generate-fonts.sh= loads =dec-fonts= through ASDF directly. Outside Nix, the default remains Quicklisp; set =DEC_FONTS_ASDF_LOAD_MODE=asdf= only when dependencies such as =png= and =array-operations= are already visible to ASDF.
+
+** GNU Guix local package
+A local Guix package module is available under =packaging/guix=. It packages the generated =dist= font artifacts from this checkout; it does not regenerate fonts in the Guix build.
+
+#+BEGIN_SRC bash
+guix lint -L packaging/guix dec-fonts
+guix build -L packaging/guix dec-fonts
+make test-guix-package GUIX=guix
+#+END_SRC
+
+=make test-guix-package= builds the package, exposes the resulting store item to =guix shell --container=, and runs the shared file/fontconfig verifier against that store prefix. Lint may warn that the local/manual package has no updater.
+
+** Gentoo local overlay
+The Gentoo live ebuild lives in the local overlay at =packaging/gentoo=:
+
+#+BEGIN_SRC bash
+# Example repos.conf entry for manual use on a Gentoo system:
+cat >/etc/portage/repos.conf/dec-fonts.conf <<EOF
+[dec-fonts]
+location = /path/to/DEC-Fonts/packaging/gentoo
+masters = gentoo
+auto-sync = no
+EOF
+
+mkdir -p /etc/portage/package.accept_keywords
+printf '%s\n' '=media-fonts/dec-fonts-9999 **' \
+  >/etc/portage/package.accept_keywords/dec-fonts
+emerge -1 =media-fonts/dec-fonts-9999
+#+END_SRC
+
+For a quick container smoke test that avoids a full dependency-resolution run, use:
+
+#+BEGIN_SRC bash
+make test-gentoo-package CONTAINER_RUNTIME=podman
+#+END_SRC
+
+The live ebuild has no stable keywords, so manual installs must accept =**= for =media-fonts/dec-fonts-9999=. The helper uses =gentoo/stage3=, runs =emerge-webrsync= for eclasses, verifies the overlay with =emerge -p= plus that keyword override, installs the live ebuild with a local checkout override, and verifies the package database plus file layout. The minimal stage3 image usually lacks =fontconfig=, so the quick test skips runtime fontconfig checks; Portage may also print a policy warning for the intentionally FHS-style =/usr/share/doc/dec-fonts= documentation directory.
+
+** Void Linux local packages
+Void support has both a lightweight binary-package builder and a standard =xbps-src= template.
+
+#+BEGIN_SRC bash
+make package-void VERSION=local-ci CONTAINER_RUNTIME=podman
+make test-void-package CONTAINER_RUNTIME=podman
+#+END_SRC
+
+The package builder uses =xbps-create= and =xbps-rindex= to produce a local =.xbps= under =dist/packages/void=. If those tools are not installed locally, it falls back to a Void container, overrides the stale default mirror with =https://repo-default.voidlinux.org/current=, updates =xbps=, installs =bash=, and builds the package there.
+
+The manual =xbps-src= template is under =packaging/void/srcpkgs/dec-fonts=. For a private =void-packages= checkout, copy or symlink that directory into =srcpkgs/dec-fonts= and provide a release tarball/checksum or a local source override, for example:
+
+#+BEGIN_SRC bash
+cd /path/to/void-packages
+ln -s /path/to/DEC-Fonts/packaging/void/srcpkgs/dec-fonts srcpkgs/dec-fonts
+DEC_FONTS_SOURCE_DIR=/path/to/DEC-Fonts ./xbps-src pkg dec-fonts
+#+END_SRC
+
+A redistributable Void template should replace the local source override with a tagged release tarball URL and checksum.
 
 ** Manual generator invocation
 Run the Common Lisp generator from the repository root with SBCL and Quicklisp:

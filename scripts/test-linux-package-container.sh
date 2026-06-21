@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'USAGE'
-usage: scripts/test-linux-package-container.sh --runtime docker|podman --format deb|rpm|arch --package PATH [--image IMAGE]
+usage: scripts/test-linux-package-container.sh --runtime docker|podman --format deb|rpm|arch|void --package PATH [--image IMAGE]
 
 Install a built dec-fonts package in a clean container and run
 scripts/verify-linux-package-install.sh inside the container.
@@ -34,7 +34,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --format)
-            [[ $# -ge 2 ]] || fail "--format requires deb, rpm, or arch"
+            [[ $# -ge 2 ]] || fail "--format requires deb, rpm, arch, or void"
             format=$2
             shift 2
             ;;
@@ -75,9 +75,9 @@ case "$runtime" in
     *) fail "--runtime must be docker or podman: $runtime" ;;
 esac
 case "$format" in
-    deb|rpm|arch) ;;
+    deb|rpm|arch|void) ;;
     "") fail "--format is required" ;;
-    *) fail "--format must be deb, rpm, or arch: $format" ;;
+    *) fail "--format must be deb, rpm, arch, or void: $format" ;;
 esac
 [[ -n "$package_path" ]] || fail "--package is required"
 command -v "$runtime" >/dev/null 2>&1 || fail "missing container runtime: $runtime"
@@ -94,6 +94,7 @@ if [[ -z "$image" ]]; then
         deb) image=debian:bookworm ;;
         rpm) image=fedora:latest ;;
         arch) image=archlinux:base-devel ;;
+        void) image=${VOID_CONTAINER_IMAGE:-docker.io/voidlinux/voidlinux:latest} ;;
     esac
 fi
 
@@ -108,10 +109,10 @@ echo "Testing $package_path in $image with $runtime"
     -e "PACKAGE_BASENAME=$package_basename" \
     -v "$repo_root:/repo$volume_suffix" \
     -v "$package_dir:/packages$volume_suffix" \
-    "$image" bash -s <<'CONTAINER'
-set -euo pipefail
+    "$image" sh -s <<'CONTAINER'
+set -eu
 pkg="/packages/$PACKAGE_BASENAME"
-[[ -f "$pkg" ]] || { echo "missing mounted package: $pkg" >&2; exit 1; }
+[ -f "$pkg" ] || { echo "missing mounted package: $pkg" >&2; exit 1; }
 
 case "$FORMAT" in
   deb)
@@ -131,8 +132,15 @@ case "$FORMAT" in
     fi
     ;;
   arch)
-    pacman -Sy --noconfirm --needed fontconfig
+    pacman -Sy --noconfirm --needed bash fontconfig
     pacman -U --noconfirm "$pkg"
+    ;;
+  void)
+    mkdir -p /etc/xbps.d
+    printf '%s\n' 'repository=https://repo-default.voidlinux.org/current' > /etc/xbps.d/00-repository-main.conf
+    xbps-install -Syu -y xbps || xbps-install -Syu -y xbps
+    xbps-install -S -y bash fontconfig
+    xbps-install -R /packages -y dec-fonts
     ;;
   *)
     echo "unsupported FORMAT: $FORMAT" >&2
@@ -140,5 +148,5 @@ case "$FORMAT" in
     ;;
 esac
 
-/repo/scripts/verify-linux-package-install.sh --format "$FORMAT"
+bash /repo/scripts/verify-linux-package-install.sh --format "$FORMAT"
 CONTAINER
