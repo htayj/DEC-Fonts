@@ -43,9 +43,28 @@ The font should work by default with xterm's double width emulation (\e#6).
 You can test if it is correct by running the included fonttest script and comparing to the screenshot below. The most noticeable difference is that double width p/q should have a small separation between the top of its stem and bowl (ie: the circle in the letter will appear slightly more circular and separated from the rest of the character. eg: the top of the character p will not be a continuous line but will instead by broken by 1 pixel in the 20px font)
 
 * Building
-Run main.lisp using sbcl with quicklisp
+Run the Common Lisp generator from the repository root with SBCL and Quicklisp:
 
-to generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbolditalic]] required for bold/italic)
+#+BEGIN_SRC bash
+sbcl --load "$HOME/quicklisp/setup.lisp" \
+     --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
+     --eval '(ql:quickload :dec-fonts)' \
+     --eval '(dec-fonts.generator:main)' \
+     --quit
+#+END_SRC
+
+This regenerates =dist/dec.set= and the base BDF files in =dist/fonts/bdf=.
+The generator is loadable as the ASDF system =dec-fonts=; loading the system does not write files. Call =dec-fonts.generator:generate= or =dec-fonts.generator:main= to generate fonts explicitly.
+
+To verify a refactor against a previously captured baseline, use:
+
+#+BEGIN_SRC bash
+scripts/check-generated.sh /path/to/baseline-directory
+#+END_SRC
+
+The baseline directory must contain =cl-generated.sha256=, for example from =sha256sum= over =dist/dec.set= and the base non-bold/non-italic BDF files before making changes.
+
+To generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbolditalic]] required for bold/italic)
 
 * Screenshots
 [[file:sample.png]] [[file:nethack_DECgraphics.png]]

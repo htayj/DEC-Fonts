@@ -1,10 +1,9 @@
-(ql:quickload "png")
-(ql:quickload :array-operations)
-;; https://man.archlinux.org/man/xterm.1#forceBoxChars
-;; need unicode points: 0x00d7, 0x2019 0x252C, 201c, 201d
-(defvar hexes '())
-(setq hexes
-      '( ("0020" "space")
+;;;; src/generator.lisp
+
+(in-package #:dec-fonts.generator)
+
+(defparameter +hexes+
+  '( ("0020" "space")
         ("25C6" "diamond")
         ("2592" "blit/medium-shade") ;; could also be 25A6, but nethack wants 2592
         ("2409" "HT")
@@ -277,396 +276,361 @@
         ("25A1" "white square")
         ("00FD" "Latin Small Letter Y with acute")))
 
-(defun 2d-array-to-list (array)
-  (loop for i below (array-dimension array 0)
-        collect (loop for j below (array-dimension array 1)
-                      collect (aref array i j))))
+(defparameter +grid-columns+ 18)
+(defparameter +grid-rows+ 16)
+(defparameter +cell-height+ 10)
+(defparameter +cell-width+ 8)
+(defparameter +cell-column-padding+ 2)
+(defparameter +cell-row-padding+ 2)
+(defparameter +x-offset+ 1)
+(defparameter +y-offset+ 2)
 
+(defparameter +output-sizes+
+  '((1 2 50)
+    (2 4 50)
+    (3 6 50)
+    (4 8 50)
+    (5 10 50)))
 
+(defparameter +default-source-image+ "./rom-separated_extended.png")
+(defparameter +default-dist-root+ "./dist")
 
-;; requires split/combine
-(defun mapa (function array &optional (retval (make-array (array-dimensions array))))
-  (dotimes ( i (array-dimension array 0) retval )
-    (setf (aref retval i)
-          (funcall function (aref array i) i))))
+(defun directory-pathname (pathname-designator)
+  "Return PATHNAME-DESIGNATOR as a directory pathname."
+  (let ((pathname (pathname pathname-designator)))
+    (if (or (pathname-name pathname) (pathname-type pathname))
+        (make-pathname :directory (append (or (pathname-directory pathname)
+                                               '(:relative))
+                                           (list (file-namestring pathname)))
+                       :name nil
+                       :type nil
+                       :defaults pathname)
+        pathname)))
 
-;; maps over first dimension of an array
-(defun maparray (function array )
-  (aops:combine (mapa function 
-                      (aops:split array 1 ))))
+(defun dist-path (dist-root relative-pathname)
+  "Resolve RELATIVE-PATHNAME underneath DIST-ROOT."
+  (merge-pathnames relative-pathname (directory-pathname dist-root)))
 
-;; concat arrays
-(defun cona (array array2) (let ((a2vec (aops:split array2 1))) (maparray #'(lambda (a i) (concatenate 'vector a (aref a2vec  i))) array) ))
+(defun map-indexed-vector (function vector
+                           &optional (result (make-array (array-dimensions vector))))
+  "Map FUNCTION over VECTOR-like one-dimensional ARRAY, passing element and index."
+  (dotimes (index (array-dimension vector 0) result)
+    (setf (aref result index)
+          (funcall function (aref vector index) index))))
 
+(defun map-array-elements (function array
+                           &optional (result (make-array (array-dimensions array))))
+  "Return an array with FUNCTION applied to each element of ARRAY."
+  (dotimes (index (array-total-size array) result)
+    (setf (row-major-aref result index)
+          (funcall function (row-major-aref array index)))))
 
-(defun array-element-map (function array
-                          &optional (retval (make-array (array-dimensions array))))
-  "Apply FUNCTION to each element of ARRAY.
-Return a new array, or write into the optional 3rd argument."
-  (dotimes (i (array-total-size array) retval)
-    (setf (row-major-aref retval i)
-          (funcall function (row-major-aref array i)))))
+(defun map-array-rows (function array)
+  "Return a new two-dimensional array by applying FUNCTION to each row of ARRAY."
+  (aops:combine
+   (map-indexed-vector function (aops:split array 1))))
 
-(defun red-to-type (red)
+(defun append-arrays-by-row (left right)
+  "Append two arrays horizontally, row by row."
+  (let ((right-rows (aops:split right 1)))
+    (map-array-rows
+     (lambda (row index)
+       (concatenate 'vector row (aref right-rows index)))
+     left)))
+
+(defun array-to-lists (array)
+  "Convert a two-dimensional array to nested lists."
+  (loop for row below (array-dimension array 0)
+        collect (loop for column below (array-dimension array 1)
+                      collect (aref array row column))))
+
+(defun red-to-pixel-type (red)
+  "Map a red-channel byte from the source PNG to the generator's pixel codes."
   (cond
-    ((> red 245) 2 )
+    ((> red 245) 2)
     ((> red 200) 0)
     (t 1)))
-(defun type-to-vis (type)
+
+(defun pixel-type-to-visible-character (type)
+  "Return a block character useful for debugging a pixel TYPE."
   (cond
-    ((= type 1 ) '▉)
-    ((= type 0 ) '░)
-    ((= type 2 ) '▒)))
+    ((= type 1) '▉)
+    ((= type 0) '░)
+    ((= type 2) '▒)))
 
-(defun colors-to-red (colors)
-  (aref colors 0))
+(defun color-red (color)
+  (aref color 0))
 
-(defun imageToTernArray (input-pathname)
-  "reads in an image and turns it into an array of 0, 1, or 2
-0: spacing
-1: background
-2: letter"
-  (let* ((image
-           (with-open-file
-               (input input-pathname :element-type '(unsigned-byte 8))
-             (png:decode input))))
-    (array-element-map #'red-to-type (array-element-map #'colors-to-red (aops:split image 2)))))
+(defun image-to-ternary-array (input-pathname)
+  "Read INPUT-PATHNAME and return a 2D array of source pixel codes.
 
-(defun pretty-print (type2d)
+The codes preserve the original script's meanings:
+0 is spacing, 1 is an ink pixel, and 2 is a separator/background marker."
+  (with-open-file (input input-pathname :element-type '(unsigned-byte 8))
+    (let ((image (png:decode input)))
+      (map-array-elements #'red-to-pixel-type
+                          (map-array-elements #'color-red
+                                              (aops:split image 2))))))
+
+(defun pretty-glyph-string (glyph)
+  "Return a human-readable block-character rendering of GLYPH."
   (format nil "~{~A~%^~}"
-          (coerce 
-           (array-element-map
-            #'(lambda (cells)
-                (format nil "~{~A~^~}" cells))
-            (array-element-map #'(lambda (arr) (coerce arr 'list))
-                               (aops:split
-                                (array-element-map
-                                 #'type-to-vis
-                                 type2d) 
-                                1)))
+          (coerce
+           (map-array-elements
+            (lambda (cells)
+              (format nil "~{~A~^~}" cells))
+            (map-array-elements (lambda (row) (coerce row 'list))
+                                (aops:split
+                                 (map-array-elements #'pixel-type-to-visible-character glyph)
+                                 1)))
            'list)))
 
+(defun spacing-row-p (row)
+  (every (lambda (cell) (= cell 2)) row))
 
-;;; ==================================
-;;; test data for reference
-;;; ==================================
-;; "
-;; ░░░░░░░░
-;; ▉░░░░░░░
-;; ▉░░░░░░░
-;; ▉░▉▉▉▉░░
-;; ▉▉░░░░▉░
-;; ▉░░░░░▉░
-;; ▉▉░░░░▉░
-;; ▉░▉▉▉▉░░
-;; ░░░░░░░░
-;; ░░░░░░░░"
+(defun extract-cell (image start-x start-y width height)
+  "Return the WIDTH by HEIGHT cell in IMAGE at START-X, START-Y."
+  (aops:combine
+   (map-array-elements
+    (lambda (row)
+      (aops:partition row start-x (+ start-x width)))
+    (aops:split
+     (aops:partition image start-y (+ start-y height))
+     1))))
 
-;; '(
-;;   '(0 0 0 0 0 0 0 0)
-;;   '(1 0 0 0 0 0 0 0)
-;;   '(1 0 0 0 0 0 0 0)
-;;   '(1 0 1 1 1 1 0 0)
-;;   '(1 1 0 0 0 0 1 0)
-;;   '(1 0 0 0 0 0 1 0)
-;;   '(1 1 0 0 0 0 1 0)
-;;   '(1 0 1 1 1 1 0 0)
-;;   '(0 0 0 0 0 0 0 0)
-;;   '(0 0 0 0 0 0 0 0)
-;;   )
+(defun y-coordinate (row &key (cell-height +cell-height+)
+                          (cell-row-padding +cell-row-padding+)
+                          (y-offset +y-offset+))
+  (+ y-offset (* row (+ cell-height cell-row-padding))))
 
-;; (defvar b (make-array '(11 8) :initial-contents '(
-;;                                                   (2 2 2 2 2 2 2 2)
-;;                                                   (0 0 0 0 0 0 0 0)
-;;                                                   (1 0 0 0 0 0 0 0)
-;;                                                   (1 0 0 0 0 0 0 0)
-;;                                                   (1 0 1 1 1 1 0 0)
-;;                                                   (1 1 0 0 0 0 1 0)
-;;                                                   (1 0 0 0 0 0 1 0)
-;;                                                   (1 1 0 0 0 0 1 0)
-;;                                                   (1 0 1 1 1 1 0 0)
-;;                                                   (0 0 0 0 0 0 0 0)
-;;                                                   (0 0 0 0 0 0 0 0)
-;;                                                   )
-;;                       ))
-;; (setq b (make-array '(11 8) :initial-contents '(
-;;                                                 (2 2 2 2 2 2 2 2)
-;;                                                 (0 0 0 0 0 0 0 0)
-;;                                                 (1 0 0 0 0 0 0 0)
-;;                                                 (1 0 0 0 0 0 0 0)
-;;                                                 (1 0 1 1 1 1 0 0)
-;;                                                 (1 1 0 0 0 0 1 0)
-;;                                                 (1 0 0 0 0 0 1 0)
-;;                                                 (1 1 0 0 0 0 1 0)
-;;                                                 (1 0 1 1 1 1 0 0)
-;;                                                 (0 0 0 0 0 0 0 0)
-;;                                                 (0 0 0 0 0 0 0 0)
-;;                                                 )
-;;                     ))
+(defun x-coordinate (column &key (cell-width +cell-width+)
+                             (cell-column-padding +cell-column-padding+)
+                             (x-offset +x-offset+))
+  (+ x-offset (* column (+ cell-width cell-column-padding))))
 
-(defun spacingp (row)
-  (every #'(lambda (cell) (= cell 2) ) row))
+(defun cell-at (image column row
+                &key
+                  (cell-height +cell-height+)
+                  (cell-width +cell-width+)
+                  (cell-column-padding +cell-column-padding+)
+                  (cell-row-padding +cell-row-padding+)
+                  (x-offset +x-offset+)
+                  (y-offset +y-offset+))
+  "Extract one glyph cell from IMAGE by grid COLUMN and ROW."
+  (extract-cell image
+                (x-coordinate column
+                              :cell-width cell-width
+                              :cell-column-padding cell-column-padding
+                              :x-offset x-offset)
+                (y-coordinate row
+                              :cell-height cell-height
+                              :cell-row-padding cell-row-padding
+                              :y-offset y-offset)
+                cell-width
+                cell-height))
 
+(defun character-cells (image
+                        &key
+                          (columns +grid-columns+)
+                          (rows +grid-rows+)
+                          (cell-height +cell-height+)
+                          (cell-width +cell-width+)
+                          (cell-column-padding +cell-column-padding+)
+                          (cell-row-padding +cell-row-padding+)
+                          (x-offset +x-offset+)
+                          (y-offset +y-offset+))
+  "Return all character cells from IMAGE in the DEC ROM grid order."
+  (loop for index below (* columns rows)
+        for column = (floor index rows)
+        for row = (mod index rows)
+        collect (cell-at image column row
+                         :cell-height cell-height
+                         :cell-width cell-width
+                         :cell-column-padding cell-column-padding
+                         :cell-row-padding cell-row-padding
+                         :x-offset x-offset
+                         :y-offset y-offset)))
 
+(defun prepend-zero-column (glyph)
+  (map-array-rows
+   (lambda (row index)
+     (declare (ignore index))
+     (concatenate 'vector #(0) row))
+   glyph))
 
-;;; ============================================
-;;; Time to extract the cells from the image
-;;; ============================================
-;; file is 16 char tall
-;; 18 char wide
-;; top pad 2px
-;; left pad 1px
-;; 2 px pad between rows
-;; 2px pad between cols
-(defvar numcol 18)
-(defvar numrow 16)
-(defvar cell-height 10)
-(defvar cell-width 8)
-(defvar cell-col-pad 2)
-(defvar cell-row-pad 2)
-(defvar y-offset 2)
-(defvar x-offset 1)
-(setq x-offset 1)
-(defun get-cell (array startx starty width height)
-  (aops:combine (array-element-map
-                 #'(lambda
-                       (row)
-                     (aops:partition row startx (+ startx width)))
-                 (aops:split
-                  (aops:partition array  starty (+ starty height))
-                  1 ))))
-(defun y-coords (yindex cell-height cell-row-pad y-offset)
-  (+ y-offset (* yindex (+ cell-height cell-row-pad))))
+(defun append-zero-column (glyph)
+  (map-array-rows
+   (lambda (row index)
+     (declare (ignore index))
+     (concatenate 'vector row #(0)))
+   glyph))
 
-(defun x-coords (xindex cell-width cell-col-pad y-offset)
-  (+ x-offset (* xindex (+ cell-width cell-col-pad))))
+(defun array-or (left right)
+  "Return the element-wise binary OR of LEFT and RIGHT."
+  (let ((result (make-array (array-dimensions left))))
+    (dotimes (index (array-total-size left) result)
+      (let ((left-pixel (row-major-aref left index))
+            (right-pixel (row-major-aref right index)))
+        (setf (row-major-aref result index)
+              (if (or (= left-pixel 1) (= right-pixel 1))
+                  1
+                  0))))))
 
+(defun stretch-glyph (glyph)
+  "Apply the VT-style horizontal antialias/stretch operation to GLYPH."
+  (array-or (prepend-zero-column glyph)
+            (append-zero-column glyph)))
 
-(defun get-cell-by-xy (x y cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-  (get-cell (imagetoternarray "./rom-separated_extended.png")
-            (x-coords x cell-width cell-col-pad y-offset)
-            (y-coords y cell-height cell-row-pad y-offset)
-            8
-            10))
+(defun append-last-column (glyph)
+  "Duplicate GLYPH's last column on the right edge."
+  (let ((last-column-index (1- (aops:ncol glyph))))
+    (map-array-rows
+     (lambda (row index)
+       (declare (ignore index))
+       (concatenate 'vector row (vector (aref row last-column-index))))
+     glyph)))
 
-(defun get-cell-by-index (i numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-  (let ((colnum (floor i numrow))
-        (rownum (mod i numrow)))
-    (get-cell-by-xy colnum rownum cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
+(defun repeat-list (value count)
+  (loop repeat count collect value))
 
-(defvar char-list (loop for i below (* numcol numrow)
-                        collect (get-cell-by-index i numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
+(defun scale-vector (vector factor)
+  "Repeat each element of VECTOR FACTOR times, returning a vector."
+  (coerce (loop for value across vector
+                append (repeat-list value factor))
+          'vector))
 
-(defun get-char-list (numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)
-  (loop for i below (* numcol numrow)
-        collect (get-cell-by-index i numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset)))
+(defun scale-width (glyph factor)
+  "Scale GLYPH horizontally by integer FACTOR."
+  (map-array-rows
+   (lambda (row index)
+     (declare (ignore index))
+     (scale-vector row factor))
+   glyph))
 
+(defun double-width (glyph)
+  (scale-width glyph 2))
 
-;;; =============================================================
-;;; Now do the bit operations to make the characters look right
-;;; =============================================================
-(defun make-antishifted (char)
-  (maparray #'(lambda (vec i)
-                (concatenate 'vector  vec #(0) )) 
-            char))
-(defun make-shifted (char)
-  (maparray #'(lambda (vec i)
-                (concatenate 'vector #(0) vec )) 
-            char))
-(defun arr-or (big-arr little-arr)
-  (maparray #'(lambda (vec i)
-                (maparray #'(lambda (b j)
-                              (let
-                                  ( (pixp (or (= b 1) (= 1 (aref little-arr i j) )) )
-                                    )
-                                (if pixp
-                                    1 0)))
-                          vec )) 
-            big-arr))
-
-;; stretch using the bit-stretching of vt100
-;; TODO: should not make the size change
-(defun stretch-char (char)
-  (arr-or (make-shifted char) (make-antishifted char )))
-
-
-;; discrepency between instructions, vt100.net says to repeat x2.
-;; But that would result in 11x10 instead of 10x10
-;; Norbert Landsteiner says to repeat by 1,
-;; which would result in 10x10, the correct dimensions
-(defun fix-end (char)
-  (let*
-      ((flip-split 
-         (aops:split 
-          (flip char )
-          1))
-       (last-col
-         (aref
-          flip-split
-          (- (aops:ncol char) 1))))
-    (flip (aops:stack-rows (aops:combine flip-split)
-                           last-col))))
-
-(defun scale (x i &optional (counter 1) (acc '()))
-  (if (> counter   i )
-      acc
-      (scale x
-             i
-             (+ counter 1) (if acc
-                               (cons x acc)
-                               (list x)))))
-;; scale character by integer
-(defun scale-width-vec (char fac)
-  (reduce
-   #'(lambda (acc curr)
-       (concatenate 'vector acc curr))
-   (maparray #'(lambda (x i) (scale x fac)) char)
-   :initial-value #()))
-
-(defun flip (matrix)
-  (aops:permute '(1 0) matrix))
-
-(defun scale-width (char fac)
-  (maparray #'(lambda (vec i) (scale-width-vec vec fac)) char) )
-
-(defun double-width (char )
-  (scale-width char 2 ))
-
-(defun scale-height (char fac)
-  (flip (maparray #'(lambda (vec i) (scale-width-vec vec fac)) (flip char )) ))
-
-(defun double-height (char )
-  (scale-height char 2 ))
-
-;;;;order of operations
-;; fix edge wrap -- repeat last row (x2?)
-;; double width if double width mode
-;; stretch
-;; double height to approx aspect ratio
+(defun scale-height (glyph factor)
+  "Scale GLYPH vertically by integer FACTOR."
+  (aops:combine
+   (coerce (loop for row across (aops:split glyph 1)
+                 append (repeat-list row factor))
+           'vector)))
 
 (defun compose (&rest functions)
-  "Compose FUNCTIONS right-associatively, returning a function"
-  #'(lambda (x)
-      (reduce #'funcall functions
-              :initial-value x
-              :from-end t)))
+  "Compose FUNCTIONS right-to-left."
+  (lambda (value)
+    (reduce #'funcall functions
+            :initial-value value
+            :from-end t)))
 
-(defvar 136-col-chars (mapcar (compose #'double-height #'stretch-char) char-list))
-(defvar 136-col-double-chars (mapcar (compose #'double-height #'stretch-char #'double-width) char-list))
-(defvar 80-col-chars (mapcar (compose #'double-height #'stretch-char #'fix-end) char-list))
-(defvar 80-col-double-chars (mapcar (compose #'double-height #'fix-end #'stretch-char #'double-width #'fix-end) char-list))
+(defun glyph-padding (glyph)
+  "Return the original generator's right-padding array for GLYPH.
 
-;;needs to be padded to reach a multiple of 8bits
-(defun get-padding (char)
-  (let 
-      ((pad-needed (- 8 (mod
-                         (aops:ncol char)
-                         8) ))
-       (height (aops:nrow char)))
-    (aops:zeros (list height pad-needed))))
-(defun pad-char (char)
-  (cona char (get-padding char)))
-(defun rows-to-string (char)
-  (mapa #'(lambda (row i)
-            (reduce #'(lambda (acc curr)
-                        (concatenate 'string acc (format nil "~D" curr)))
-                    row :initial-value ""))
-        (aops:split char 1)))
-(defun binstr-to-hex (str i)
-  (format nil ( format nil "~~~A,'0X"  (floor (length str ) 4)) (parse-integer str :radix 2)))
-(defun binchar-to-hex (char ) (mapa #'binstr-to-hex char))
-(defun array-char-to-bdf-char (char)
-  (binchar-to-hex (rows-to-string (pad-char char))))
+This intentionally preserves the old quirk of adding eight columns when the
+width is already byte-aligned."
+  (let ((padding-needed (- 8 (mod (aops:ncol glyph) 8)))
+        (height (aops:nrow glyph)))
+    (aops:zeros (list height padding-needed))))
 
-(defun get-hex-string (char-cons)
-  (car char-cons ))
+(defun pad-glyph (glyph)
+  (append-arrays-by-row glyph (glyph-padding glyph)))
 
-;; check for duplicates
-(defun tay-duplicates (lst &optional (acc '()))
-  (let* ((this-item (car lst))
-         (next-item (cadr lst))
-         (rest-items (cdr lst))
-         (new-acc (if (string-equal this-item next-item)
-                      (cons this-item acc)
-                      acc) )
-         )
-    (if rest-items (tay-duplicates rest-items new-acc) new-acc )))
+(defun row-to-bit-string (row)
+  (with-output-to-string (output)
+    (loop for cell across row
+          do (format output "~D" cell))))
 
-(let( 
-     (dupes (tay-duplicates (remove nil  (sort (mapcar #'get-hex-string hexes) #'string-lessp ) )) ) )
-  (if dupes
-      (print (format nil "duplicates detected: ~A" dupes ) ))
-  )
-(sort (mapcar #'get-hex-string hexes) #'string-lessp)
+(defun glyph-rows-to-bit-strings (glyph)
+  (map-indexed-vector
+   (lambda (row index)
+     (declare (ignore index))
+     (row-to-bit-string row))
+   (aops:split glyph 1)))
 
-;; convert to bdf format
+(defun binary-string-to-hex (string index)
+  (declare (ignore index))
+  (format nil (format nil "~~~A,'0X" (floor (length string) 4))
+          (parse-integer string :radix 2)))
 
+(defun bit-strings-to-hex (strings)
+  (map-indexed-vector #'binary-string-to-hex strings))
 
+(defun glyph-to-bdf-bitmap (glyph)
+  (bit-strings-to-hex (glyph-rows-to-bit-strings (pad-glyph glyph))))
 
-(defun get-dec-string (char-cons)
-  (format nil "~d" (parse-integer (get-hex-string char-cons) :radix 16 ) ))
+(defun hex-string (entry)
+  (car entry))
 
-(defun hex-string-to-dec-string (hex-string)
-  (format nil "~d" (parse-integer hex-string :radix 16 ) ))
+(defun encoded-hex-strings ()
+  (remove nil (sort (mapcar #'hex-string +hexes+) #'string-lessp)))
 
-(defun zip-hex-and-char (hex-list char-list &optional (combo  '()))
-  (let ((char (car char-list))
-        (hex (car hex-list)))
-    (if (and (not char) (not hex))
-        combo
-        (zip-hex-and-char
+(defun duplicate-adjacent-strings (strings &optional (duplicates '()))
+  (let ((this-item (car strings))
+        (next-item (cadr strings))
+        (rest-items (cdr strings)))
+    (if rest-items
+        (duplicate-adjacent-strings
+         rest-items
+         (if (string-equal this-item next-item)
+             (cons this-item duplicates)
+             duplicates))
+        duplicates)))
+
+(defun validate-no-duplicate-hexes ()
+  (let ((duplicates (duplicate-adjacent-strings
+                     (remove nil (sort (mapcar #'hex-string +hexes+)
+                                       #'string-lessp)))))
+    (when duplicates
+      (print (format nil "duplicates detected: ~A" duplicates)))))
+
+(defun decimal-string-for-entry (entry)
+  (format nil "~d" (parse-integer (hex-string entry) :radix 16)))
+
+(defun zip-hexes-and-glyphs (hex-list glyphs &optional (pairs '()))
+  "Pair HEX-LIST and GLYPHS, preserving the original reversed BDF order."
+  (let ((glyph (car glyphs))
+        (hex-entry (car hex-list)))
+    (if (and (not glyph) (not hex-entry))
+        pairs
+        (zip-hexes-and-glyphs
          (cdr hex-list)
-         (cdr char-list)
-         (cons (list (get-hex-string hex) char)
-               combo)))))
+         (cdr glyphs)
+         (cons (list (hex-string hex-entry) glyph)
+               pairs)))))
 
+(defun size-line (zipped-glyphs)
+  (let ((height (aops:nrow (cadar zipped-glyphs))))
+    (format nil "SIZE ~d 75 75" height)))
 
-;;accoring to https://www.vt100.net/docs/vt100-tm/chapter1.html the aspect ratio is
-;; 3.35 x 2.0. Unsure if that is height to width or width to height, but it seems likely
-;; that it is height to width
-
-;;; defining functions to help print to file
-;; STARTPROPERTIES 2
-;; FONT_ASCENT 14
-;; FONT_DESCENT 2
-;; ENDPROPERTIES
-
-(defun get-size ( zipped )
-  (let*
-      ((height (aops:nrow (cadar zipped))))
-    (format nil "SIZE ~d 75 75"  height )))
-
-(defun get-bounding-box ( zipped )
-  (let*
-      ((width (aops:ncol (cadar zipped)))
-       (height (aops:nrow (cadar zipped)))
-       (descent (- (/ height 5) )))
+(defun bounding-box-line (zipped-glyphs)
+  (let* ((width (aops:ncol (cadar zipped-glyphs)))
+         (height (aops:nrow (cadar zipped-glyphs)))
+         (descent (- (/ height 5))))
     (format nil "FONTBOUNDINGBOX ~d ~d ~d ~d" width height 0 descent)))
 
+(defun descent-line (zipped-glyphs)
+  (let* ((height (aops:nrow (cadar zipped-glyphs)))
+         (descent (/ height 5)))
+    (format nil "FONT_DESCENT ~d" descent)))
 
-(defun get-descent ( zipped )
-  (let*
-      ((height (aops:nrow (cadar zipped)))
-       (descent (/ height 5) ))
-    (format nil "FONT_DESCENT ~d"  descent )))
+(defun ascent-line (zipped-glyphs)
+  (let* ((height (aops:nrow (cadar zipped-glyphs)))
+         (descent (/ height 5))
+         (ascent (- height descent)))
+    (format nil "FONT_ASCENT ~d" ascent)))
 
-(defun get-ascent ( zipped )
-  (let*
-      ((height (aops:nrow (cadar zipped)))
-       (descent (/ height 5) )
-       (ascent (- height descent)))
-    (format nil "FONT_ASCENT ~d"  ascent )))
+(defun chars-line (zipped-glyphs)
+  (declare (ignore zipped-glyphs))
+  (format nil "CHARS ~d" (length (encoded-hex-strings))))
 
-(defun get-chars (zipped)
-  (format nil "CHARS ~d" (length zipped) ))
+(defun newline-joined-string (strings)
+  (format nil "~{~A~^~%~}" strings))
 
-;; convert list to file string
-(defun to-nl-string ( string-list )
-  (format nil "~{~A~^~%~}" string-list))
-
-(defun generate-file-name (foundry face width height width-type style-name xres &optional rel-width)
-  (format nil
-          "~A-~A-~A-~A-~Ax~A-~Axres"
+(defun generate-file-name (foundry face width height width-type style-name xres
+                           &optional relative-width)
+  (declare (ignore relative-width))
+  (format nil "~A-~A-~A-~A-~Ax~A-~Axres"
           foundry
           face
           width-type
@@ -674,9 +638,10 @@ Return a new array, or write into the optional 3rd argument."
           width
           height
           xres))
-(defun generate-font-name (foundry face width height width-type style-name xres &optional rel-width)
-  (format nil
-          "-~A-~A-medium-r-~A-~A-~A-~A-~A-75-c-~A-iso10646-1~A"
+
+(defun generate-font-name (foundry face width height width-type style-name xres
+                           &optional relative-width)
+  (format nil "-~A-~A-medium-r-~A-~A-~A-~A-~A-75-c-~A-iso10646-1~A"
           foundry
           face
           width-type
@@ -685,171 +650,196 @@ Return a new array, or write into the optional 3rd argument."
           (* 10 height)
           xres
           (* width 10)
-          (if rel-width
-              (format nil "-relwidth~A" rel-width)
+          (if relative-width
+              (format nil "-relwidth~A" relative-width)
               "")))
 
-(defun create-string-prop (key val)
-  (format nil "~A \"~A\"" key val))
-(defun create-prop (key val)
-  (format nil "~A ~A" key val))
+(defun string-property-line (key value)
+  (format nil "~A \"~A\"" key value))
 
-;; build the font header
-(defun build-header (zipped width-type style-name xres rel-width )
-  (let* ((width (aops:ncol (cadar zipped)))
-         (height (aops:nrow (cadar zipped)))
-         (descent (- (/ height 5) )))
-    (to-nl-string (list "STARTFONT 2.1"
-                        (format nil "FONT ~A" (generate-font-name 'DIGITAL 'vt220 width height width-type style-name xres)) ;;fixme -medium-r-normal--16-160-75-75-c-80-iso10646-1
-                        (get-size zipped)
-                        (get-bounding-box zipped)
-                        "STARTPROPERTIES 21"
-                        ;; (create-string-prop 'fontname_registry "")
-                        (create-string-prop 'foundry "DIGITAL")
-                        ;; if the xlfd properties dont work correctly
-                        ;;(create-string-prop 'family_name (format nil "vt220_~A_~A_rwidth~A" style-name width-type rel-width )) 
-                        (create-string-prop 'family_name "vt220")
-                        (create-string-prop 'weight_name "medium")
-                        (create-prop 'relative_setwidth rel-width)
-                        (create-string-prop 'slant "r")
-                        (create-string-prop 'setwidth_name width-type)
-                        (create-string-prop 'add_style_name style-name)
-                        (create-prop 'pixel_size height)
-                        (create-prop 'point_size (* 10 height ))
-                        (create-prop 'resolution_x 75)
-                        (create-prop 'resolution_y 75)
-                        (create-string-prop 'spacing "c")
-                        (create-string-prop 'charset_registry "ISO10646")
-                        (create-string-prop 'charset_encoding "1")
-                        (create-prop 'cap_height (- height (/ height 5) (/ height 10)))
-                        (create-prop 'x_height (/ height 2))
-                        (create-prop 'weight 10)
-                        (create-prop 'quad_width width)
-                        ;; (create-prop 'default_char 9670)
-                        (get-ascent zipped)
-                        (get-descent zipped)
-                        (format nil "AVERAGE_WIDTH ~A" (* 10 width))
-                        "ENDPROPERTIES"
-                        (get-chars (remove nil  (sort (mapcar #'get-hex-string hexes) #'string-lessp ) ))) ) ))
-(defun char-start (unihex)
-  (format nil "STARTCHAR U+~A" unihex))
+(defun property-line (key value)
+  (format nil "~A ~A" key value))
 
-(defun get-bbx ( raw-char )
-  (let*
-      ((width (aops:ncol raw-char))
-       (height (aops:nrow raw-char))
-       (descent (- (/ height 5) )))
+(defun build-header (zipped-glyphs width-type style-name xres relative-width)
+  "Return the exact BDF header used by the original generator."
+  (let* ((width (aops:ncol (cadar zipped-glyphs)))
+         (height (aops:nrow (cadar zipped-glyphs))))
+    (newline-joined-string
+     (list "STARTFONT 2.1"
+           ;; The original XLFD FONT line omitted RELATIVE-WIDTH; keep that quirk.
+           (format nil "FONT ~A"
+                   (generate-font-name "DIGITAL" "VT220" width height
+                                       width-type style-name xres))
+           (size-line zipped-glyphs)
+           (bounding-box-line zipped-glyphs)
+           "STARTPROPERTIES 21"
+           (string-property-line "FOUNDRY" "DIGITAL")
+           (string-property-line "FAMILY_NAME" "vt220")
+           (string-property-line "WEIGHT_NAME" "medium")
+           (property-line "RELATIVE_SETWIDTH" relative-width)
+           (string-property-line "SLANT" "r")
+           (string-property-line "SETWIDTH_NAME" width-type)
+           (string-property-line "ADD_STYLE_NAME" style-name)
+           (property-line "PIXEL_SIZE" height)
+           (property-line "POINT_SIZE" (* 10 height))
+           (property-line "RESOLUTION_X" 75)
+           (property-line "RESOLUTION_Y" 75)
+           (string-property-line "SPACING" "c")
+           (string-property-line "CHARSET_REGISTRY" "ISO10646")
+           (string-property-line "CHARSET_ENCODING" "1")
+           (property-line "CAP_HEIGHT" (- height (/ height 5) (/ height 10)))
+           (property-line "X_HEIGHT" (/ height 2))
+           (property-line "WEIGHT" 10)
+           (property-line "QUAD_WIDTH" width)
+           (ascent-line zipped-glyphs)
+           (descent-line zipped-glyphs)
+           (format nil "AVERAGE_WIDTH ~A" (* 10 width))
+           "ENDPROPERTIES"
+           (chars-line zipped-glyphs)))))
+
+(defun character-start-line (unicode-hex)
+  (format nil "STARTCHAR U+~A" unicode-hex))
+
+(defun glyph-bbx-line (glyph)
+  (let* ((width (aops:ncol glyph))
+         (height (aops:nrow glyph))
+         (descent (- (/ height 5))))
     (format nil "BBX ~d ~d ~d ~d" width height 0 descent)))
 
-;;;; building character
-(defun build-char (zipped-char)
-  (let* ((unihex (get-hex-string zipped-char))
-         (unidec (get-dec-string zipped-char))
-         (char-raw (cadr zipped-char))
-         (char-bit (coerce (array-char-to-bdf-char char-raw) 'list)))
-    (list (char-start unihex)
-          (format nil "ENCODING ~A" unidec)
+(defun build-character (zipped-glyph)
+  (let* ((unicode-hex (hex-string zipped-glyph))
+         (unicode-decimal (decimal-string-for-entry zipped-glyph))
+         (glyph (cadr zipped-glyph))
+         (bitmap-lines (coerce (glyph-to-bdf-bitmap glyph) 'list)))
+    (list (character-start-line unicode-hex)
+          (format nil "ENCODING ~A" unicode-decimal)
           "SWIDTH 1000 0"
-          (format nil "DWIDTH ~d 0" (aops:ncol char-raw))
-          (get-bbx char-raw)
+          (format nil "DWIDTH ~d 0" (aops:ncol glyph))
+          (glyph-bbx-line glyph)
           "BITMAP"
-          (to-nl-string char-bit)
+          (newline-joined-string bitmap-lines)
           "ENDCHAR")))
 
+(defun nil-hex-entry-p (zipped-glyph)
+  (string-equal "NIL" (car zipped-glyph)))
 
-;; build all characters
-(defun build-all-chars (zipped-chars)
-  (to-nl-string
-   (mapcar #'to-nl-string (mapcar #'build-char
-                                  (remove-if #'(lambda (x)
-                                                 (string-equal "NIL"
-                                                               (car x) ))
-                                             zipped-chars)))))
+(defun build-all-characters (zipped-glyphs)
+  (newline-joined-string
+   (mapcar #'newline-joined-string
+           (mapcar #'build-character
+                   (remove-if #'nil-hex-entry-p zipped-glyphs)))))
 
+(defun font-pathname (dist-root file-name)
+  (dist-path dist-root
+             (make-pathname :directory '(:relative "fonts" "bdf")
+                            :name file-name
+                            :type "bdf")))
 
-;; build complete file
-(defun write-font (zipped-hex-chars width-type style-name xres rel-width)
-  (let* ((width (aops:ncol (cadar zipped-hex-chars)))
-         (height (aops:nrow (cadar zipped-hex-chars)))
-         (descent (- (/ height 5) )))
-    (print (format nil "writing font: ~A" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name xres rel-width)))
-    (with-open-file (str (format nil "./dist/fonts/bdf/~A.bdf" (generate-file-name 'DIGITAL 'vt220 width height width-type style-name xres rel-width))
-                         :direction :output
-                         :if-exists :supersede
-                         :if-does-not-exist :create)
-      (format str "~A" (to-nl-string (list (build-header zipped-hex-chars width-type style-name xres rel-width)
-                                           (build-all-chars zipped-hex-chars)
-                                           "ENDFONT"
-                                           ""))))))
+(defun write-font (zipped-glyphs width-type style-name xres relative-width
+                   &key (dist-root +default-dist-root+))
+  (let* ((width (aops:ncol (cadar zipped-glyphs)))
+         (height (aops:nrow (cadar zipped-glyphs)))
+         (file-name (generate-file-name "DIGITAL" "VT220" width height
+                                        width-type style-name xres
+                                        relative-width))
+         (pathname (font-pathname dist-root file-name)))
+    (print (format nil "writing font: ~A" file-name))
+    (ensure-directories-exist pathname)
+    (with-open-file (stream pathname
+                            :direction :output
+                            :if-exists :supersede
+                            :if-does-not-exist :create)
+      (format stream "~A"
+              (newline-joined-string
+               (list (build-header zipped-glyphs width-type style-name xres
+                                   relative-width)
+                     (build-all-characters zipped-glyphs)
+                     "ENDFONT"
+                     ""))))))
 
-(defun write-chars (chars width-type style-name xres rel-width)
-  (write-font (zip-hex-and-char hexes chars) width-type style-name xres rel-width ))
+(defun write-glyphs (glyphs width-type style-name xres relative-width
+                     &key (dist-root +default-dist-root+))
+  (write-font (zip-hexes-and-glyphs +hexes+ glyphs)
+              width-type style-name xres relative-width
+              :dist-root dist-root))
 
-;; size is (xscale yscale)
-(defun write-chars-in-sizes (chars sizes width-type xres col-num)
-  (mapcar #'(lambda (size)
-              (write-chars (mapcar #'(lambda (char)
-                                       (scale-height (scale-width char (car size))
-                                                     ( cadr size ) ))
-                                   chars)
-                           width-type
-                           col-num
-                           xres
-                           (caddr size)))
+(defun scale-glyph-for-output (glyph size)
+  (scale-height (scale-width glyph (car size))
+                (cadr size)))
 
-          sizes))
+(defun write-glyphs-in-sizes (glyphs sizes width-type xres style-name
+                              &key (dist-root +default-dist-root+))
+  (dolist (size sizes)
+    (write-glyphs (mapcar (lambda (glyph)
+                            (scale-glyph-for-output glyph size))
+                          glyphs)
+                  width-type
+                  style-name
+                  xres
+                  (caddr size)
+                  :dist-root dist-root)))
 
-;; read and process file
-;; split into 136 vs 80 col
-;; split into double and normal width
-;; zip with unicode point
-;; output to file
+(defun dec-set-pathname (dist-root)
+  (dist-path dist-root "dec.set"))
 
-(defun get-relative-width (width height)
-  (cond
-    ((eq height width) 90)
-    ((eq (/ height width) 2) 50)
-    ((eq (/ height width) 3) 50)
-    )
-  )
-(eq (/ 4 3) 2)
-4/3
-(caddr '(1 2 3 4))
-(let* ((char-list (get-char-list numcol numrow cell-height cell-width cell-col-pad cell-row-pad x-offset y-offset ))
-       ;; uncomment this line to get more sizes. However, I dont use them and they interferre with font selection enough to be annoying
-       ;; (sizes '((1 1 90) (1 2 50) (1 3 10) 
-       ;;          (2 2 90) (2 3 70) (2 4 50) (2 5 30) (2 6 10)
-       ;;          (3 3 90) (3 4 80) (3 5 70) (3 6 50) (3 7 40) (3 9 30)
-       ;;          (4 4 90) (4 5 80) (4 6 70) (4 7 60) (4 8 50) (4 9 40) (4 10 30) (4 11 20) (4 12 10)
-       ;;          (5 5 90) (5 6 80) (5 8 70 ) (5 9 60) (5 10 50) (5 12 40) (5 15 30) (5 18 20) (5 20 10)))
-       (sizes '((1 2 50)
-                (2 4 50)
-                (3 6 50)
-                (4 8 50) 
-                (5 10 50)))
-       (136-col-chars (mapcar (compose #'stretch-char) char-list))
-       (136-col-double-chars (mapcar (compose #'stretch-char #'double-width) char-list))
-       (80-col-chars (mapcar (compose #'stretch-char #'fix-end) char-list))
-       (80-col-double-chars (mapcar (compose #'fix-end #'stretch-char #'double-width #'fix-end) char-list)))
-  (write-chars-in-sizes 136-col-chars sizes "Normal" '75 "136col")
-  (write-chars-in-sizes 136-col-double-chars sizes "Normal" '150 "136col")
-  (write-chars-in-sizes 80-col-chars sizes "Normal" '75 "80col")
-  (write-chars-in-sizes 80-col-double-chars sizes "Normal" '150 "80col"))
+(defun write-dec-set (&key (dist-root +default-dist-root+))
+  (let ((pathname (dec-set-pathname dist-root)))
+    (ensure-directories-exist pathname)
+    (with-open-file (stream pathname
+                            :direction :output
+                            :if-exists :supersede
+                            :if-does-not-exist :create)
+      (format stream "~A"
+              (newline-joined-string
+               (mapcar (lambda (hex-entry)
+                         (format nil "U+~A # ~A"
+                                 (car hex-entry)
+                                 (cadr hex-entry)))
+                       (remove-if (lambda (entry)
+                                    (string-equal "NIL" (car entry)))
+                                  +hexes+)))))))
 
+(defun variant-glyphs (glyphs)
+  "Return the four glyph variants written by the generator."
+  (values
+   (mapcar (compose #'stretch-glyph) glyphs)
+   (mapcar (compose #'stretch-glyph #'double-width) glyphs)
+   (mapcar (compose #'stretch-glyph #'append-last-column) glyphs)
+   (mapcar (compose #'append-last-column
+                    #'stretch-glyph
+                    #'double-width
+                    #'append-last-column)
+           glyphs)))
 
+(defun generate (&key (source-image +default-source-image+)
+                   (dist-root +default-dist-root+))
+  "Generate DEC font BDF files and dec.set using the original byte format."
+  (validate-no-duplicate-hexes)
+  (let* ((image (image-to-ternary-array source-image))
+         (glyphs (character-cells image)))
+    (multiple-value-bind (136-column-glyphs
+                          136-column-double-glyphs
+                          80-column-glyphs
+                          80-column-double-glyphs)
+        (variant-glyphs glyphs)
+      (write-glyphs-in-sizes 136-column-glyphs +output-sizes+
+                             "Normal" 75 "136col"
+                             :dist-root dist-root)
+      (write-glyphs-in-sizes 136-column-double-glyphs +output-sizes+
+                             "Normal" 150 "136col"
+                             :dist-root dist-root)
+      (write-glyphs-in-sizes 80-column-glyphs +output-sizes+
+                             "Normal" 75 "80col"
+                             :dist-root dist-root)
+      (write-glyphs-in-sizes 80-column-double-glyphs +output-sizes+
+                             "Normal" 150 "80col"
+                             :dist-root dist-root)
+      (write-dec-set :dist-root dist-root)))
+  (values))
 
-
-;; (mapcar #'pretty-print (mapcar (lambda (char) (double-width char) )  char-list ))
-;; (mapcar #'pretty-print  char-list)
-
-;; write the char set
-(with-open-file (str "./dist/dec.set" 
-                     :direction :output
-                     :if-exists :supersede
-                     :if-does-not-exist :create)
-  (format str "~A" (to-nl-string (mapcar #'(lambda (hex-pair) (format nil "U+~A # ~A" (car hex-pair) (cadr hex-pair))) (remove-if #'(lambda (x)
-                                                                                                                                      (string-equal "NIL"
-                                                                                                                                                    (car x) ))
-                                                                                                                                  hexes))) ))
-
-(print "done")
+(defun main (&key (source-image +default-source-image+)
+               (dist-root +default-dist-root+))
+  "Generate fonts with default repository-relative paths and print completion."
+  (generate :source-image source-image :dist-root dist-root)
+  (print "done")
+  (values))
