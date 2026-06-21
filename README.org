@@ -1,20 +1,20 @@
-This is a faithful recreation of the DEC VT220 fonts, in bitmap font format, using a VT220 rom dump and performing the same operations on the pixels as described in the VT220 technical manual. The only departure is that the bitmap is stretched 2x vertically since the vertical pixel density of the VT220 was about 1/2 it's horizontal pixel density.
+This is a faithful recreation of the DEC VT220 fonts in bitmap font format. It uses a VT220 ROM dump and applies the same pixel operations described in the VT220 technical manual. The only departure is that the bitmap is stretched 2x vertically, since the VT220's vertical pixel density was about half its horizontal pixel density.
 
-Fonts with 150 x resolution are double width and have been created by doubling the width before stretching as per the DEC manual
+Fonts with 150 x-resolution are double-width fonts. They are created by doubling the width before stretching, as described in the DEC manual.
 
-Additionally, I have added a few new characters based on the original characters, mostly related to the General Punctuation unicode block (U+2000 - U+206F) since they are encountered regularly when using a terminal based web browser. Bold/italic/bolditalic fonts (generated using mkbolditalic) are also included although they are anachronistic to 
+Additionally, I have added a few new characters based on the original glyphs, mostly from the General Punctuation Unicode block (U+2000 - U+206F), since they are encountered regularly when using terminal-based web browsers. Bold, italic, and bold italic fonts (generated using mkbolditalic) are also included, although they are anachronistic for a VT220.
 
 The default base BDF set is the 80-column xterm master set: normal 10x20 at 75 x-resolution, double-wide 20x20 at 150 x-resolution, and double-size 20x40 at 75 x-resolution. Additional scaled sizes and 132-column variants can be generated explicitly.
 
 * Installation
-The default fonts are provided in the =dist/fonts= folder. They cover the 80-column xterm master set; scaled sizes and 132-column variants are opt-in generator outputs.
+The default fonts in =dist/fonts= cover the 80-column xterm master set; scaled sizes and 132-column variants are opt-in generator outputs.
 
 - Use =bdf= for X core-font clients such as =xterm=. This is the recommended format when you want DEC/xterm double-width and double-height line controls to use matching bitmap masters.
 - Use =otb= for fontconfig/Xft applications.
 - Use =psf= for the Linux console with =setfont=.
 
 ** Recommended xterm install: default 80-column size
-Most users only need the default 80-column 10x20 font plus the two bitmap masters that =xterm= can use for VT-style double-width and double-height lines:
+Most users only need the default 80-column 10x20 font plus the two additional bitmap masters that =xterm= can use for VT-style double-width and double-height lines:
 
 | Purpose | File |
 |---------+------|
@@ -37,7 +37,7 @@ cp \
   dist/fonts/bdf/DIGITAL-VT220-Normal-80col-20x40-75xres.bdf \
   "$install_dir"/
 
-# Optional, but recommended if you configure xterm to use real bold fonts.
+# Optional but recommended if you configure xterm to use real bold fonts.
 cp \
   dist/fonts/bdf/DIGITAL-VT220-Normal-80col-Bold-10x20-75xres.bdf \
   dist/fonts/bdf/DIGITAL-VT220-Normal-80col-Bold-20x20-150xres.bdf \
@@ -47,7 +47,7 @@ cp \
 (cd "$install_dir" && mkfontscale && mkfontdir)
 fc-cache -fv "$install_dir"
 
-# This affects the current X session. Put the two xset lines in ~/.xprofile
+# This affects the current X session. Add the two xset lines to ~/.xprofile
 # or ~/.xinitrc if you want them applied automatically at login.
 xset +fp "$install_dir"
 xset fp rehash
@@ -88,14 +88,14 @@ xterm -fn '-digital-vt220-medium-r-normal-80col-20-200-75-75-c-100-iso10646-1' \
 
 The double-width section should use the 20x20/150-xres font. The double-height section should use the 20x40 font for the top and bottom halves. The most noticeable difference is that double-width =p= and =q= should have a small separation between the top of the stem and bowl; in the 20px font the top of the character is not a continuous line.
 
-** Full BDF install
+** Full BDF installation
 If you have opted into extra sizes or 132-column variants during a local build, copy all generated BDF files instead of the minimal set:
 
 #+BEGIN_SRC bash
 git clone https://github.com/htayj/DEC-Fonts.git
 cd DEC-Fonts
 
-# Optional: regenerate every base size/width before conversion.
+# Optional: regenerate every base size and width before conversion.
 sbcl --load "$HOME/quicklisp/setup.lisp" \
      --eval '(asdf:load-asd (merge-pathnames "dec-fonts.asd" (uiop:getcwd)))' \
      --eval '(ql:quickload :dec-fonts)' \
@@ -131,7 +131,7 @@ This regenerates =dist/dec.set= and the default three base BDF files in =dist/fo
 - =DIGITAL-VT220-Normal-80col-20x20-150xres.bdf=
 - =DIGITAL-VT220-Normal-80col-20x40-75xres.bdf=
 
-The generator is loadable as the ASDF system =dec-fonts=; loading the system does not write files. Call =dec-fonts.generator:generate= or =dec-fonts.generator:main= to generate fonts explicitly. By default stale generated =DIGITAL-VT220-Normal-*.bdf= files are removed from =dist/fonts/bdf= before writing the selected base BDFs.
+The generator is loadable as the ASDF system =dec-fonts=; loading the system does not write files. Call =dec-fonts.generator:generate= or =dec-fonts.generator:main= to generate fonts explicitly. By default, stale generated =DIGITAL-VT220-Normal-*.bdf= files are removed from =dist/fonts/bdf= before writing the selected base BDFs.
 
 Opt into the additional scaled 80-column sizes:
 
@@ -181,7 +181,7 @@ scripts/check-generated.sh /path/to/baseline-directory [GENERATOR_OPTION ...]
 
 The baseline directory must contain =cl-generated.sha256=, for example from =sha256sum= over =dist/dec.set= and the base non-bold/non-italic BDF files before making changes. Any extra arguments are passed to =dec-fonts.generator:cli-main=, so you can verify opt-in outputs with options such as =--include-scaled-sizes= or =--include-132-column=.
 
-To generate the otb and psf fonts, alongside bold/italic, run convert.bash ( bdf2psf required for the psf fonts and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbolditalic]] required for bold/italic):
+To generate the OTB and PSF fonts, along with the bold, italic, and bold italic variants, run =convert.bash=. The script requires =fonttosfnt= for OTB, =bdf2psf= for PSF, and [[http://hp.vector.co.jp/authors/VA013651/freeSoftware/mkbold-mkitalic.html][mkbold/mkitalic/mkbolditalic]] for the derived styles:
 
 #+BEGIN_SRC bash
 ./convert.bash
@@ -201,13 +201,12 @@ The generated BDF metadata follows BDF 2.1 and XLFD conventions: =SIZE= uses poi
 [[file:sample.png]] [[file:nethack_DECgraphics.png]]
 
 * Acknowledgements
-Giant thank you to Paul Flo Williams for creating vt100.net, which provided the rom dump image (rom-separated.png) that is parsed to create the font along with the instructions on how the font is created
+A giant thank-you to Paul Flo Williams for creating VT100.net, which provided the ROM dump image (=rom-separated.png=) that is parsed to create the font, along with the instructions for how the font is created.
 
 https://www.vt100.net/dec/vt220/glyphs
 
 * See Also
 - [[https://web.archive.org/web/20160908194141/http://www.vtxemu.com/download.html][DEC Terminal Modern]] - a TTF modern interpretation of the VT220 font.
-- [[https://github.com/svofski/glasstty][GlassTTY]] - a TTF version of the font with scan lines 
+- [[https://github.com/svofski/glasstty][GlassTTY]] - a TTF version of the font with scan lines
 
- 
 * [[file:TODOs.org][TODO-List]]
